@@ -1,0 +1,317 @@
+include(CheckCCompilerFlag)
+
+# set RPI_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
+# defines RPI_VC_DIR for use externally
+if(NOT RPI_SYSROOT)
+  set(RPI_SYSROOT "/$ENV{RPI_SYSROOT}")
+  if(EXISTS ${RPI_SYSROOT}/opt/vc/include/bcm_host.h) #clang does not support -print-sysroot.
+    set(RPI_SYSROOT ${RPI_SYSROOT})
+  else()
+    execute_process(
+        COMMAND ${CMAKE_C_COMPILER} -print-sysroot
+        OUTPUT_VARIABLE CC_SYSROOT
+        ERROR_VARIABLE SYSROOT_ERROR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(RPI_SYSROOT ${CC_SYSROOT})
+  endif()
+endif()
+if(RPI_SYSROOT OR RPI_VC_DIR)
+  if(EXISTS ${RPI_VC_DIR}/include/bcm_host.h)
+    set(HAVE_BRCM 1)
+  else()
+    find_file(HAVE_BRCM opt/vc/include/bcm_host.h 
+        HINTS ENV RPI_SYSROOT
+        PATHS ${RPI_SYSROOT}
+        CMAKE_FIND_ROOT_PATH_BOTH
+    )
+  endif()
+  if(HAVE_BRCM)
+    if(RPI_SYSROOT STREQUAL / OR RPI_VC_DIR STREQUAL "/opt/vc" OR RPI_VC_DIR STREQUAL "/opt/vc/")
+      message("Raspberry Pi host build")
+    else()
+      message("Raspberry Pi cross build")
+      set(CMAKE_CROSSCOMPILING TRUE)
+    endif()
+    set(CMAKE_SYSTEM_NAME RaspberryPi)
+    set(OS rpi)
+    set(RPI 1)
+    #set(ARCH armv6)
+    # unset os detected as host when cross compiling
+    unset(APPLE)
+    unset(WIN32)
+    add_definitions(-DOS_RPI)
+    if(NOT RPI_VC_DIR)
+      if(${RPI_SYSROOT} MATCHES ".*/$")
+        set(RPI_VC_DIR ${RPI_SYSROOT}opt/vc)
+      else()
+        set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
+      endif()
+    endif()
+  endif()
+endif()
+
+if(NOT ARCH)
+  set(ARCH x86)
+  if(CMAKE_CL_64)
+      set(ARCH x64)
+  elseif(CMAKE_SIZEOF_VOID_P MATCHES 8)
+      set(ARCH x64)
+  endif()
+endif()
+
+if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore 
+  set(WINRT 1)
+  set(WINSTORE 1)
+  set(WIN32 1) ## defined in cmake?
+  set(OS WinRT)
+  # TODO: add cc/ld flags
+endif()
+
+if(NOT OS)
+  if(WIN32)
+    set(OS windows)
+  elseif(APPLE)
+    if(IOS)
+      set(OS iOS)
+    else()
+      set(OS macOS)
+    endif()
+    set(ARCH universal)
+  elseif(ANDROID)
+    set(OS android)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Android") # use cmake android support instead of toolchain files from NDK
+        set(ANDROID_ABI ${CMAKE_ANDROID_ARCH_ABI}) #CMAKE_SYSTEM_PROCESSOR
+        set(ANDROID_STL ${CMAKE_ANDROID_STL_TYPE})
+        set(ANDROID_TOOLCHAIN_PREFIX ${CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX})
+    endif()
+    set(ARCH ${ANDROID_ABI})
+  endif()
+endif()
+
+# TODO: function ensure_cxx11
+if(NOT CMAKE_CXX_STANDARD LESS 11)
+  if(APPLE)
+    if(POLICY CMP0063)
+      cmake_policy(GET CMP0063 CMP0063_VAL)
+    endif()
+    if(NOT CMP0063_VAL OR CMP0063_VAL STREQUAL OLD)
+      message("Set CMP0063 to NEW to get better compatibility")
+    endif()
+    # Check AppleClang requires cmake>=3.0 and set CMP0025 to NEW. FIXME: It's still Clang with ios toolchain file
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL AppleClang) #headers with objc syntax, clang attributes error
+      if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+      else() # FIXME: gcc can not recognize clang attributes and objc syntax
+      endif()
+    endif()
+    if(IOS)
+    else()
+      if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
+        if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7)
+            if(CMAKE_C_COMPILER_ID STREQUAL AppleClang)
+              message("Apple clang does not support c++11 for macOS 10.6")
+            endif()
+          else()
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+          endif()
+        endif()
+    endif()
+  endif()
+endif()
+
+if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
+  add_compile_options(-utf-8)  # no more codepage warnings
+endif()
+
+if(ANDROID)
+  if(NOT ANDROID_NDK)
+    if(CMAKE_ANDROID_NDK)
+      set(ANDROID_NDK ${CMAKE_ANDROID_NDK})
+    else()
+      set(ANDROID_NDK $ENV{ANDROID_NDK})
+    endif()
+  endif()
+  if(ANDROID_STL MATCHES "^c\\+\\+_")
+    set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/cxx-stl/llvm-libc++/libs/${ANDROID_ABI})
+  elseif(ANDROID_STL MATCHES "^gnustl_")
+    if(ANDROID_STL_PREFIX) # toolchain file from ndk
+      set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/cxx-stl/${ANDROID_STL_PREFIX}/libs/${ANDROID_ABI})
+    elseif(CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION) # can be clang. what if clang use gnustl?
+      set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/gnu-libstdc++/${CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION}/libs/${ANDROID_ABI})
+    endif()
+  endif()
+  if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
+    # g++ has no -stdlib option. clang default stdlib is -lstdc++. we change it to libc++ to avoid linking against libstdc++
+    # -stdlib=libc++ will find libc++.so, while android ndk has no such file. libc++.a is a linker script. Seems can be used for shared libc++
+    #file(WRITE ${CMAKE_BINARY_DIR}/libc++.so "INPUT(-lc++_shared)") # SEARCH_DIR() is only valid for -Wl,-T
+    #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${CMAKE_BINARY_DIR} -stdlib=libc++")
+    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${CMAKE_BINARY_DIR} -stdlib=libc++")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -stdlib=libc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -stdlib=libc++")
+  else()
+  # adding -lgcc in CMAKE_SHARED_LINKER_FLAGS will fail to link. add to target_link_libraries() or CMAKE_CXX_STANDARD_LIBRARIES_INIT in toolchain file
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
+  endif()
+endif()
+
+# FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
+option(USE_LTO "Link time optimization." OFF)
+if(USE_LTO)
+  if(MSVC)
+    set(LTO_CFLAGS "-GL")
+    set(LTO_LFLAGS "-LTCG -IGNORE:4075")
+  else()
+    if(CMAKE_C_COMPILER_ID STREQUAL "Intel")
+      if(CMAKE_HOST_WIN32)
+        set(LTO_FLAGS "-Qipo")
+      else()
+        set(LTO_FLAGS "-ipo")
+      endif()
+    else()
+      cmake_host_system_information(RESULT CPUS QUERY NUMBER_OF_LOGICAL_CORES)
+      set(LTO_FLAGS "-flto=${CPUS}") # FIXME: parallel lto requires more memory and may fail
+      set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
+      check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_N)
+      set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+      set(HAVE_LTO ${HAVE_LTO_N})
+      if(NOT HAVE_LTO_N) # android clang, icc
+        set(LTO_FLAGS "-flto")
+        set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+        set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
+        check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+      endif()
+      if(HAVE_LTO) # android clang fails to use lto because of LLVMgold plugin is not found
+        set(LTO_CFLAGS ${LTO_FLAGS})
+        set(LTO_LFLAGS ${LTO_FLAGS})
+      endif()
+    endif()
+  endif()
+  if(LTO_CFLAGS)
+    add_compile_options(${LTO_CFLAGS})
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LTO_LFLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LTO_LFLAGS}")
+  endif()
+endif()
+
+
+#include_directories($ENV{UNIVERSALCRTSDKDIR}/Include/$ENV{WINDOWSSDKVERSION}/ucrt)
+# starts with "-": treated as a link flag. VC: starts with "/" and treated as a path
+
+# mkdsym: create debug symbol file and strip original file.
+function(mkdsym tgt)
+  if(ANDROID)
+    set(OBJCOPY ${ANDROID_TOOLCHAIN_PREFIX}objcopy)
+  elseif(DEFINED CROSS_PREFIX)
+    set(OBJCOPY ${CROSS_PREFIX}objcopy)
+  elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU") # $<C_COMPILER_ID:GNU> does not work
+    # ${CMAKE_C_COMPILER} -print-prog-name=objcopy does not always work
+    # FIXME: gcc-6
+    if(CMAKE_HOST_WIN32)
+      string(REGEX REPLACE "gcc.exe$|cc.exe$" "objcopy.exe" OBJCOPY ${CMAKE_C_COMPILER})
+    else()
+      string(REGEX REPLACE "gcc$|cc$" "objcopy" OBJCOPY ${CMAKE_C_COMPILER})
+    endif()
+    # or 1st replace ${CMAKE_C_COMPILER}, 2nd replace ${OBJCOPY}
+  endif()
+  # TODO: find objcopy in target tools (e.g. clang toolchain)
+  # TODO: apple support
+  if(OBJCOPY)
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.orig
+      COMMAND ${OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
+      COMMAND ${OBJCOPY} --strip-debug --strip-unneeded --discard-all $<TARGET_FILE:${tgt}>
+      COMMAND ${OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
+      )
+  endif()
+endfunction()
+
+
+#http://stackoverflow.com/questions/11813271/embed-resources-eg-shader-code-images-into-executable-library-with-cmake/11814544#11814544
+# Creates C resources file from files in given directory
+function(mkres files)
+    #message("files: ${ARGC} arg0:${ARGV0}  argn:${ARGN}")
+    # Create empty output file
+    file(WRITE ${ARGV0} "")
+    # Collect input files
+    # Iterate through input files
+    foreach(bin ${ARGN})
+        # Get short filename
+        string(REGEX MATCH "([^/]+)$" filename ${bin})
+        # Replace filename spaces & extension separator for C compatibility
+        string(REGEX REPLACE "\\.| |-" "_" filename ${filename})
+        # Read hex data from file
+        file(READ ${bin} filedata HEX)
+        # Convert hex data for C compatibility
+        string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," filedata ${filedata})
+        # Append data to output file
+        file(APPEND ${ARGV0} "static const unsigned char k${filename}[] = {${filedata}0x00};\nstatic const unsigned k${filename}_size = sizeof(k${filename});\n")
+    endforeach()
+endfunction()
+
+# strip_local([target1 [target2 ...]])
+# apply to all targets if no target is set
+# strip local symbols when linking. asm symbols are still exported. relocatable object target contains renamed local symbols (for DCE) and removed at final linking.
+function(strip_local)
+  if(NOT MSVC)
+    set(LD_FLAGS "-Wl,-x")
+    if(NOT APPLE) # check APPLE is enough because no other linker available on apple. what about llvm lld?
+      set(LD_FLAGS "${LD_FLAGS} -Wl,--exclude-libs,ALL") # prevent to export external lib apis
+    endif()
+  endif()
+  if(NOT LD_FLAGS)
+    message("no ld support")
+    return()
+  endif()
+  list(LENGTH ARGN _nb_args)
+  if(_nb_args GREATER 0)
+    #set_target_properties(${ARGN} PROPERTIES LINK_FLAGS "${LD_FLAGS}") # not append
+    set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
+  else()
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
+  endif()
+# CMAKE_LINK_SEARCH_START_STATIC
+endfunction()
+
+# TODO: to a target?
+# set default rpath dirs and add user defined rpaths
+function(set_rpath)
+  include(CMakeParseArguments)
+  include(CheckCCompilerFlag)
+#CMAKE_SHARED_LIBRARY_RPATH_LINK_C_FLAG
+  if(WIN32 OR ANDROID)
+    return()
+  endif()
+  cmake_parse_arguments(RPATH "" "" "DIRS" ${ARGN}) #ARGV?
+  set(RPATH_FLAGS "")
+  set(LD_RPATH "-Wl,-rpath,")
+  set(CMAKE_REQUIRED_LIBRARIES "-Wl,--enable-new-dtags") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
+  unset(HAVE_DTAGS CACHE)
+  check_c_compiler_flag("" HAVE_DTAGS)
+  if(HAVE_DTAGS)
+    set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,--enable-new-dtags")
+  endif()
+# Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
+# Working dir search: "."
+# mac: install_name @rpath/... will search paths set in rpath link flags
+  if(APPLE)
+    list(APPEND RPATH_DIRS @loader_path/../Frameworks @executable_path/../Frameworks)
+    # -install_name @rpath/... is set by cmake
+  else()
+    list(APPEND RPATH_DIRS "\\$\\$ORIGIN" "\\$\\$ORIGIN/lib") #. /usr/local/lib
+    set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
+  endif()
+  foreach(p ${RPATH_DIRS})
+    set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
+  endforeach()
+  #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
+  #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
+  if(IOS AND NOT IOS_EMBEDDED_FRAMEWORK)
+  else()
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
+  endif()
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
+endfunction()
