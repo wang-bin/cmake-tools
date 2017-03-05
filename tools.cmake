@@ -157,7 +157,7 @@ if(ANDROID)
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
-option(USE_LTO "Link time optimization." OFF)
+option(USE_LTO "Link time optimization." 0) #TODO: USE_LTO=0,1,N,MAX
 if(USE_LTO)
   if(MSVC)
     set(LTO_CFLAGS "-GL")
@@ -201,30 +201,37 @@ endif()
 #include_directories($ENV{UNIVERSALCRTSDKDIR}/Include/$ENV{WINDOWSSDKVERSION}/ucrt)
 # starts with "-": treated as a link flag. VC: starts with "/" and treated as a path
 
-# mkdsym: create debug symbol file and strip original file.
-function(mkdsym tgt)
+# Find binutils
+if(NOT CMAKE_OBJCOPY)
+  message("Probing CMAKE_OBJCOPY...")
   if(ANDROID)
-    set(OBJCOPY ${ANDROID_TOOLCHAIN_PREFIX}objcopy)
+    set(CMAKE_OBJCOPY ${ANDROID_TOOLCHAIN_PREFIX}objcopy)
   elseif(DEFINED CROSS_PREFIX)
-    set(OBJCOPY ${CROSS_PREFIX}objcopy)
+    set(CMAKE_OBJCOPY ${CROSS_PREFIX}objcopy)
   elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU") # $<C_COMPILER_ID:GNU> does not work
     # ${CMAKE_C_COMPILER} -print-prog-name=objcopy does not always work
-    # FIXME: gcc-6
     if(CMAKE_HOST_WIN32)
-      string(REGEX REPLACE "gcc.exe$|cc.exe$" "objcopy.exe" OBJCOPY ${CMAKE_C_COMPILER})
+      string(REGEX REPLACE "gcc.exe$|cc.exe$" "objcopy.exe" CMAKE_OBJCOPY ${CMAKE_C_COMPILER})
     else()
-      string(REGEX REPLACE "gcc$|cc$" "objcopy" OBJCOPY ${CMAKE_C_COMPILER})
+      string(REGEX REPLACE "gcc$|cc$" "objcopy" CMAKE_OBJCOPY ${CMAKE_C_COMPILER})
     endif()
-    # or 1st replace ${CMAKE_C_COMPILER}, 2nd replace ${OBJCOPY}
+    # or 1st replace ${CMAKE_C_COMPILER}, 2nd replace ${CMAKE_OBJCOPY}
+    if(CMAKE_OBJCOPY STREQUAL CMAKE_C_COMPILER)
+      string(REGEX REPLACE "gcc[^/]*$" "objcopy" CMAKE_OBJCOPY ${CMAKE_OBJCOPY}) # /usr/bin/gcc-6
+    endif()
   endif()
+  message("CMAKE_OBJCOPY:${CMAKE_OBJCOPY}")
+endif()
+# mkdsym: create debug symbol file and strip original file.
+function(mkdsym tgt)
   # TODO: find objcopy in target tools (e.g. clang toolchain)
   # TODO: apple support
-  if(OBJCOPY)
+  if(CMAKE_OBJCOPY)
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.orig
-      COMMAND ${OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
-      COMMAND ${OBJCOPY} --strip-debug --strip-unneeded --discard-all $<TARGET_FILE:${tgt}>
-      COMMAND ${OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
+      COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
+      COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all $<TARGET_FILE:${tgt}>
+      COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
       )
   endif()
 endfunction()
