@@ -271,6 +271,29 @@ function(mkres files)
     endforeach()
 endfunction()
 
+# TODO: check target is a SHARED library
+function(set_relocatable_objects)
+  if(MSVC)
+
+  else()
+    set(LD_FLAGS "-r -nostdlib")
+    set(CMAKE_REQUIRED_LIBRARIES "${LD_FLAGS}")
+    check_c_compiler_flag("" HAVE_RO)
+    if(NOT HAVE_RO)
+      set(LD_FLAGS)
+    endif()
+  endif()
+  if(LD_FLAGS)
+    list(LENGTH ARGN _nb_args)
+    if(_nb_args GREATER 0)
+      #set_target_properties(${ARGN} PROPERTIES LINK_FLAGS "${LD_FLAGS}") # not append
+      set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
+    else()
+      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
+    endif()
+  endif()
+endfunction()
+
 # strip_local([target1 [target2 ...]])
 # apply to all targets if no target is set
 # strip local symbols when linking. asm symbols are still exported. relocatable object target contains renamed local symbols (for DCE) and removed at final linking.
