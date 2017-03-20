@@ -109,13 +109,14 @@ if(NOT CMAKE_CXX_STANDARD LESS 11)
     else()
       if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
         if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7)
-            if(CMAKE_C_COMPILER_ID STREQUAL AppleClang)
+          if(CMAKE_C_COMPILER_ID STREQUAL AppleClang)
               message("Apple clang does not support c++11 for macOS 10.6")
-            endif()
-          else()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
           endif()
+        else()
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+          # TODO: add function to run on target: install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${TARGET_NAME}> ?
         endif()
+      endif()
     endif()
   endif()
 endif()
@@ -203,6 +204,7 @@ if(USE_LTO)
     add_compile_options(${LTO_CFLAGS})
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LTO_LFLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LTO_LFLAGS}")
+    # gcc-ar, gcc-ranlib
   endif()
 endif()
 
@@ -218,7 +220,7 @@ if(NOT CMAKE_OBJCOPY)
   elseif(DEFINED CROSS_PREFIX)
     set(CMAKE_OBJCOPY ${CROSS_PREFIX}objcopy)
   elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU") # $<C_COMPILER_ID:GNU> does not work
-    # ${CMAKE_C_COMPILER} -print-prog-name=objcopy does not always work
+    # ${CMAKE_C_COMPILER} -print-prog-name=objcopy does not always work. WHEN?
     if(CMAKE_HOST_WIN32)
       string(REGEX REPLACE "gcc.exe$|cc.exe$" "objcopy.exe" CMAKE_OBJCOPY ${CMAKE_C_COMPILER})
     else()
@@ -265,7 +267,7 @@ function(mkres files)
         # Convert hex data for C compatibility
         string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," filedata ${filedata})
         # Append data to output file
-        file(APPEND ${ARGV0} "static const unsigned char k${filename}[] = {${filedata}0x00};\nstatic const unsigned k${filename}_size = sizeof(k${filename});\n")
+        file(APPEND ${ARGV0} "static const unsigned char k${filename}[] = {${filedata}0x00};\nstatic const size_t k${filename}_size = sizeof(k${filename});\n")
     endforeach()
 endfunction()
 
@@ -305,17 +307,17 @@ function(set_rpath)
   cmake_parse_arguments(RPATH "" "" "DIRS" ${ARGN}) #ARGV?
   set(RPATH_FLAGS "")
   set(LD_RPATH "-Wl,-rpath,")
-  set(CMAKE_REQUIRED_LIBRARIES "-Wl,--enable-new-dtags") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
-  unset(HAVE_DTAGS CACHE)
+  set(LD_DTAGS "-Wl,--enable-new-dtags")
+  set(CMAKE_REQUIRED_LIBRARIES "${LD_DTAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
   check_c_compiler_flag("" HAVE_DTAGS)
   if(HAVE_DTAGS)
-    set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,--enable-new-dtags")
+    set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_DTAGS}")
   endif()
 # Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
-    list(APPEND RPATH_DIRS @loader_path/../Frameworks @executable_path/../Frameworks)
+    list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$\\$ORIGIN" "\\$\\$ORIGIN/lib") #. /usr/local/lib
