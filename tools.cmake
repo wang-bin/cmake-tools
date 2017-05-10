@@ -107,6 +107,7 @@ if(NOT CMAKE_CXX_STANDARD LESS 11)
     endif()
     if(IOS)
     else()
+    message("CMAKE_OSX_DEPLOYMENT_TARGET:${CMAKE_OSX_DEPLOYMENT_TARGET}")
       if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
         if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7)
           if(CMAKE_C_COMPILER_ID STREQUAL AppleClang)
@@ -123,6 +124,11 @@ endif()
 
 if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
+endif()
+
+check_c_compiler_flag(-Wunused HAVE_WUNUSED)
+if(HAVE_WUNUSED)
+  add_compile_options(-Wunused)
 endif()
 
 if(ANDROID)
@@ -155,6 +161,7 @@ if(ANDROID)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
   endif()
+  #  -Wl,--exclude-libs,libgcc.a   https://android-review.googlesource.com/#/c/388556/
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
@@ -294,12 +301,16 @@ function(set_relocatable_objects)
   endif()
 endfunction()
 
+# TODO: function(add_ldflags ...)
+
 # strip_local([target1 [target2 ...]])
-# apply to all targets if no target is set
+# apply "-Wl,-x" to all targets if no target is set
 # strip local symbols when linking. asm symbols are still exported. relocatable object target contains renamed local symbols (for DCE) and removed at final linking.
-function(strip_local)
+
+# exclude_libs_all([target1 [target2 ...]])
+# exporting symbols excluding all depended static libs
+function(exclude_libs_all)
   if(NOT MSVC)
-    set(LD_FLAGS "-Wl,-x")
     if(NOT APPLE) # check APPLE is enough because no other linker available on apple. what about llvm lld?
       set(LD_FLAGS "${LD_FLAGS} -Wl,--exclude-libs,ALL") # prevent to export external lib apis
     endif()
@@ -314,6 +325,7 @@ function(strip_local)
     set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
   else()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
   endif()
 # CMAKE_LINK_SEARCH_START_STATIC
 endfunction()
