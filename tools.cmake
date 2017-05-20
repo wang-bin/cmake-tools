@@ -253,6 +253,9 @@ function(mkdsym tgt)
       COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
       )
   endif()
+  install(FILES $<TARGET_FILE:${tgt}>.dsym
+    DESTINATION lib
+  )
 endfunction()
 
 
@@ -300,8 +303,6 @@ function(set_relocatable_objects)
     endif()
   endif()
 endfunction()
-
-# TODO: function(add_ldflags ...)
 
 # strip_local([target1 [target2 ...]])
 # apply "-Wl,-x" to all targets if no target is set
