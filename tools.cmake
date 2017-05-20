@@ -252,10 +252,20 @@ function(mkdsym tgt)
       COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all $<TARGET_FILE:${tgt}>
       COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
       )
+    if(CMAKE_VERSION VERSION_LESS 3.0)
+      get_property(tgt_path TARGET ${tgt} PROPERTY LOCATION) #cmake > 2.8.12: CMP0026
+      # can not use wildcard "${tgt_path}*.dsym"
+      if(ANDROID)
+        install(FILES ${tgt_path}.dsym DESTINATION lib)
+      else()
+        get_property(tgt_version TARGET ${tgt} PROPERTY VERSION)
+        # libxx.so.dsym, but $<TARGET_FILE:${tgt}> is libxx.so.x.y.z
+        install(FILES ${tgt_path}.${tgt_version}.dsym DESTINATION lib)
+      endif()
+    else()
+      install(FILES ${tgt_path}.dsym DESTINATION lib)
+    endif()
   endif()
-  install(FILES $<TARGET_FILE:${tgt}>.dsym
-    DESTINATION lib
-  )
 endfunction()
 
 
