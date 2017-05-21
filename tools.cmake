@@ -1,3 +1,8 @@
+if(TOOLS_CMAKE_INCLUDED)
+  return()
+endif()
+set(TOOLS_CMAKE_INCLUDED 1)
+
 include(CheckCCompilerFlag)
 
 # set RPI_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
@@ -366,7 +371,7 @@ function(set_rpath)
     list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
-    list(APPEND RPATH_DIRS "\\$\\$ORIGIN" "\\$\\$ORIGIN/lib") #. /usr/local/lib
+      list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
   endif()
   foreach(p ${RPATH_DIRS})
