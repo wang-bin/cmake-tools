@@ -1,3 +1,4 @@
+# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -268,7 +269,7 @@ function(mkdsym tgt)
         install(FILES ${tgt_path}.${tgt_version}.dsym DESTINATION lib)
       endif()
     else()
-      install(FILES ${tgt_path}.dsym DESTINATION lib)
+      install(FILES $<TARGET_FILE:${tgt}>.dsym DESTINATION lib)
     endif()
   endif()
 endfunction()
