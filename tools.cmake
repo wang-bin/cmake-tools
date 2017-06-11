@@ -1,4 +1,4 @@
-# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths
+# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths. uninstall template
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -151,7 +151,7 @@ if(ANDROID)
     if(ANDROID_STL_PREFIX) # toolchain file from ndk
       set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/cxx-stl/${ANDROID_STL_PREFIX}/libs/${ANDROID_ABI})
     elseif(CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION) # can be clang. what if clang use gnustl?
-      set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/gnu-libstdc++/${CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION}/libs/${ANDROID_ABI})
+      set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/cxx-stl/gnu-libstdc++/${CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION}/libs/${ANDROID_ABI})
     endif()
   endif()
   if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
