@@ -1,10 +1,12 @@
-# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths. uninstall template, rc file
+# TODO: pch, auto add target dep libs dir to rpath-link paths. uninstall template, rc file
 # XP cflags(-D_WIN_NT=0x0501), exeflags
-# -fdata-sections -Wl,--gc-sections
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
 set(TOOLS_CMAKE_INCLUDED 1)
+
+option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
+option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. TRUE: max parallelism" 0)
 
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
@@ -90,7 +92,10 @@ if(NOT OS)
     set(ARCH universal)
   elseif(ANDROID)
     set(OS android)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Android") # use cmake android support instead of toolchain files from NDK
+    if(ANDROID_NDK_TOOLCHAIN_INCLUDED OR ANDROID_TOOLCHAIN) # ANDROID_NDK_TOOLCHAIN_INCLUDED is defined in r15
+      set(ANDROID_NDK_TOOLCHAIN_INCLUDED TRUE)
+    endif()
+    if(NOT ANDROID_NDK_TOOLCHAIN_INCLUDED) # use cmake android support instead of toolchain files from NDK
         set(ANDROID_ABI ${CMAKE_ANDROID_ARCH_ABI}) #CMAKE_SYSTEM_PROCESSOR
         set(ANDROID_STL ${CMAKE_ANDROID_STL_TYPE})
         set(ANDROID_TOOLCHAIN_PREFIX ${CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX})
@@ -141,6 +146,39 @@ if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
 
+if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
+  if(ELF_HARDENED)
+    set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security -fstack-protector-strong) # -fstack-protector-strong is default for debian
+    set(ELF_HARDENED_LFLAGS "-Wl,-z,relro -Wl,-z,now")
+    set(ELF_HARDENED_EFLAGS "-fPIE -pie")
+    if(ANDROID)
+      if(ANDROID_NDK_TOOLCHAIN_INCLUDED) # already defined by ndk: ANDROID_DISABLE_RELRO, ANDROID_DISABLE_FORMAT_STRING_CHECKS, ANDROID_PIE
+        set(ELF_HARDENED_CFLAGS "")
+        set(ELF_HARDENED_LFLAGS "")
+        set(ELF_HARDENED_EFLAGS "")
+      endif()
+    else()
+      set(ELF_HARDENED_CFLAGS "${ELF_HARDEN_CFLAGS} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
+    endif()
+    add_compile_options(${ELF_HARDENED_CFLAGS})
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ELF_HARDENED_EFLAGS}")
+  endif()
+  # Dead code elimination
+  set(DCE_CFLAGS -fdata-sections -ffunction-sections)
+  set(DCE_LFLAGS "-Wl,--as-needed -Wl,--gc-sections")
+  # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
+# https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
+endif()
+# TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
+if(DCE_CFLAGS)
+  add_compile_options(${DCE_CFLAGS})
+endif()
+if(DCE_LFLAGS)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${DCE_LFLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${DCE_LFLAGS}")
+endif()
+
 if(ANDROID)
   if(NOT ANDROID_NDK)
     if(CMAKE_ANDROID_NDK)
@@ -179,10 +217,8 @@ if(ANDROID)
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
-# USE_LTO=0,false,off to disable lto, 1 to enable lto, >1 to enable parallel lto with given jobs, other values (e.g. TRUE, -1) to enable parallel lto with maximum jobs
 # If parallel lto is not supported, fallback to single job lto
 # TODO: lld linker (e.g. for COFF /opt:lldltojobs=N)
-option(USE_LTO "Link time optimization." 0)
 if(USE_LTO)
   if(MSVC)
     set(LTO_CFLAGS "-GL")
