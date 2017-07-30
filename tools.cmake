@@ -1,10 +1,14 @@
-# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths. uninstall template
+# TODO: elf harden. pch, auto add target dep libs dir to rpath-link paths. uninstall template, rc file
+# XP cflags(-D_WIN_NT=0x0501), exeflags
+# -fdata-sections -Wl,--gc-sections
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
 set(TOOLS_CMAKE_INCLUDED 1)
 
+include(CMakeParseArguments)
 include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
 
 # set RPI_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
 # defines RPI_VC_DIR for use externally
@@ -167,6 +171,10 @@ if(ANDROID)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
   endif()
+  if(ANDROID_ABI STREQUAL "armeabi" AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # for gcc -nodefaultlibs
+    #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lgcc")
+    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lgcc")
+  endif()
   #  -Wl,--exclude-libs,libgcc.a   https://android-review.googlesource.com/#/c/388556/
 endif()
 
@@ -297,18 +305,27 @@ function(mkres files)
     endforeach()
 endfunction()
 
+function(enable_ldflags_if var flags)
+  string(STRIP "${flags}" flags_stripped)
+  if("${flags_stripped}" STREQUAL "")
+    return()
+  endif()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES "${flags_stripped}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
+  unset(HAVE_LDFLAG_${var} CACHE) # cached by check_cxx_compiler_flag
+  check_cxx_compiler_flag("" HAVE_LDFLAG_${var})
+  if(HAVE_LDFLAG_${var})
+    set(V "${${var}} ${flags_stripped}")
+    string(STRIP "${V}" V)
+    set(${var} ${V} PARENT_SCOPE)
+  endif()
+endfunction()
+
 # TODO: check target is a SHARED library
 function(set_relocatable_flags)
   if(MSVC)
-
   else()
 # can't use with -shared. -dynamic(apple) is fine. -shared is set in CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS, so we may add another library type RELOCATABLE in add_library
-    set(LD_FLAGS "-r -nostdlib")
-    set(CMAKE_REQUIRED_LIBRARIES "${LD_FLAGS}")
-    check_c_compiler_flag("" HAVE_RO)
-    if(NOT HAVE_RO)
-      set(LD_FLAGS)
-    endif()
+    enable_ldflags_if(LD_FLAGS "-r -nostdlib")
   endif()
   if(LD_FLAGS)
     list(LENGTH ARGN _nb_args)
@@ -316,7 +333,7 @@ function(set_relocatable_flags)
       foreach(t ${ARGN})
         get_target_property(${t}_reloc ${t} RELOCATABLE)
         if(${t}_reloc)
-        message("set ro flags: ${LD_FLAGS}")
+          message("set ro flags: ${LD_FLAGS}")
           set_property(TARGET ${t} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
         endif()
       endforeach()
@@ -357,21 +374,13 @@ endfunction()
 # TODO: to a target?
 # set default rpath dirs and add user defined rpaths
 function(set_rpath)
-  include(CMakeParseArguments)
-  include(CheckCCompilerFlag)
 #CMAKE_SHARED_LIBRARY_RPATH_LINK_C_FLAG
   if(WIN32 OR ANDROID)
     return()
   endif()
   cmake_parse_arguments(RPATH "" "" "DIRS" ${ARGN}) #ARGV?
-  set(RPATH_FLAGS "")
+  enable_ldflags_if(RPATH_FLAGS "-Wl,--enable-new-dtags")
   set(LD_RPATH "-Wl,-rpath,")
-  set(LD_DTAGS "-Wl,--enable-new-dtags")
-  set(CMAKE_REQUIRED_LIBRARIES "${LD_DTAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
-  check_c_compiler_flag("" HAVE_DTAGS)
-  if(HAVE_DTAGS)
-    set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_DTAGS}")
-  endif()
 # Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
