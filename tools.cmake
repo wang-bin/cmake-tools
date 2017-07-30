@@ -148,7 +148,12 @@ endif()
 
 if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
   if(ELF_HARDENED)
-    set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security -fstack-protector-strong) # -fstack-protector-strong is default for debian
+    set(CFLAGS_STACK_PROTECTOR -fstack-protector-strong) # -fstack-protector-strong(since gcc4.9) is default for debian
+    check_c_compiler_flag(${CFLAGS_STACK_PROTECTOR} HAVE_STACK_PROTECTOR_STRONG)
+    if(NOT HAVE_STACK_PROTECTOR_STRONG)
+      set(CFLAGS_STACK_PROTECTOR -fstack-protector)
+    endif()
+    set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security ${CFLAGS_STACK_PROTECTOR})
     set(ELF_HARDENED_LFLAGS "-Wl,-z,relro -Wl,-z,now")
     set(ELF_HARDENED_EFLAGS "-fPIE -pie")
     if(ANDROID)
