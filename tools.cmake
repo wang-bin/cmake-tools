@@ -1,5 +1,4 @@
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
-# XP cflags(-D_WIN_NT=0x0501), exeflags
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 if(TOOLS_CMAKE_INCLUDED)
   return()
@@ -8,6 +7,7 @@ set(TOOLS_CMAKE_INCLUDED 1)
 
 option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
 option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. TRUE: max parallelism" 0)
+option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
@@ -79,6 +79,16 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   set(WIN32 1) ## defined in cmake?
   set(OS WinRT)
   # TODO: add cc/ld flags
+endif()
+
+if(WINDOWS_XP AND MSVC AND NOT WINSTORE)
+  if(CMAKE_CL_64)
+    add_definitions(-D_WIN32_WINNT=0x0502)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.02")
+  else()
+    add_definitions(-D_WIN32_WINNT=0x0501)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.01")
+  endif()
 endif()
 
 if(NOT OS)
