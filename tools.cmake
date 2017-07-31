@@ -1,5 +1,6 @@
-# TODO: pch, auto add target dep libs dir to rpath-link paths. uninstall template, rc file
+# TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 # XP cflags(-D_WIN_NT=0x0501), exeflags
+#-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -443,3 +444,13 @@ function(set_rpath)
   endif()
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
 endfunction()
+
+# uninstall target
+configure_file(
+    "${CMAKE_CURRENT_LIST_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+
+add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+
