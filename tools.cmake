@@ -232,11 +232,9 @@ if(ANDROID)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
   endif()
-  if(ANDROID_ABI STREQUAL "armeabi" AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # for gcc -nodefaultlibs
-    #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lgcc")
-    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lgcc")
+  if(CMAKE_SHARED_LINKER_FLAGS MATCHES "-nodefaultlibs" OR ANDROID_STL MATCHES "_static") # g++ or static libc++ -nodefaultlibs/-nostdlib. libgcc defines __emutls_get_address (and more), x86 may require libdl
+    link_libraries(-lgcc -ldl) # requires cmake_policy(SET CMP0022 NEW)
   endif()
-  #  -Wl,--exclude-libs,libgcc.a   https://android-review.googlesource.com/#/c/388556/
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
