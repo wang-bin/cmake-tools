@@ -180,11 +180,18 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ELF_HARDENED_EFLAGS}")
   endif()
-  # Dead code elimination
-  set(DCE_CFLAGS -fdata-sections -ffunction-sections)
-  set(DCE_LFLAGS "-Wl,--as-needed -Wl,--gc-sections")
-  # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
+endif()
+
+# Dead code elimination
+# https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
+check_c_compiler_flag("-Werror -ffunction-sections -Wl,--as-needed -Wl,--gc-sections" HAVE_GCSECTIONS)
+if(HAVE_GCSECTIONS)
+  set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
+  set(DCE_LFLAGS "-Wl,--as-needed -Wl,--gc-sections")
+  if(NOT WIN32) # mingw gcc will increase size
+    list(APPEND DCE_CFLAGS -fdata-sections)
+  endif()
 endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 if(DCE_CFLAGS)
