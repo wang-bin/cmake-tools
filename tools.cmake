@@ -71,6 +71,7 @@ if(NOT ARCH)
   elseif(CMAKE_SIZEOF_VOID_P MATCHES 8)
       set(ARCH x64)
   endif()
+  # TODO: arm etc.
 endif()
 
 if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore 
@@ -235,6 +236,9 @@ if(ANDROID)
   if(CMAKE_SHARED_LINKER_FLAGS MATCHES "-nodefaultlibs" OR ANDROID_STL MATCHES "_static") # g++ or static libc++ -nodefaultlibs/-nostdlib. libgcc defines __emutls_get_address (and more), x86 may require libdl
     link_libraries(-lgcc -ldl) # requires cmake_policy(SET CMP0022 NEW)
   endif()
+# libsupc++.a seems useless (not found in cmake & qt), but it's added by ndk for gnustl_shared even without exception enabled.
+  string(REPLACE "\"${ANDROID_STL_LIB_DIR}/libsupc++.a\"" "" CMAKE_CXX_STANDARD_LIBRARIES_INIT "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
+  set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
