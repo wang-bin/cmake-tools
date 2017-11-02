@@ -13,56 +13,46 @@ include(CMakeParseArguments)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
-# set RPI_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
+# set CMAKE_SYSTEM_PROCESSOR, CMAKE_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
 # defines RPI_VC_DIR for use externally
-if(NOT RPI_SYSROOT)
-  set(RPI_SYSROOT "/$ENV{RPI_SYSROOT}")
-  if(EXISTS ${RPI_SYSROOT}/opt/vc/include/bcm_host.h) #clang does not support -print-sysroot.
-    set(RPI_SYSROOT ${RPI_SYSROOT})
-  else()
-    execute_process(
-        COMMAND ${CMAKE_C_COMPILER} -print-sysroot
-        OUTPUT_VARIABLE CC_SYSROOT
-        ERROR_VARIABLE SYSROOT_ERROR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+if(EXISTS ${CMAKE_SYSROOT}/opt/vc/include/bcm_host.h) # CMAKE_SYSROOT can be empty
+  set(RPI_SYSROOT ${CMAKE_SYSROOT})
+  set(RPI 1)
+else()
+  execute_process(
+      COMMAND ${CMAKE_C_COMPILER} -print-sysroot  #clang does not support -print-sysroot
+      OUTPUT_VARIABLE CC_SYSROOT
+      ERROR_VARIABLE SYSROOT_ERROR
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(EXISTS ${CC_SYSROOT}/opt/vc/include/bcm_host.h)
     set(RPI_SYSROOT ${CC_SYSROOT})
-  endif()
-endif()
-if(RPI_SYSROOT OR RPI_VC_DIR)
-  if(EXISTS ${RPI_VC_DIR}/include/bcm_host.h)
-    set(HAVE_BRCM 1)
-  else()
-    find_file(HAVE_BRCM opt/vc/include/bcm_host.h 
-        HINTS ENV RPI_SYSROOT
-        PATHS ${RPI_SYSROOT}
-        CMAKE_FIND_ROOT_PATH_BOTH
-    )
-  endif()
-  if(HAVE_BRCM)
-    if(RPI_SYSROOT STREQUAL / OR RPI_VC_DIR STREQUAL "/opt/vc" OR RPI_VC_DIR STREQUAL "/opt/vc/")
-      message("Raspberry Pi host build")
-    else()
-      message("Raspberry Pi cross build")
-      set(CMAKE_CROSSCOMPILING TRUE)
-    endif()
-    set(CMAKE_SYSTEM_NAME RaspberryPi)
-    set(OS rpi)
     set(RPI 1)
-    #set(ARCH armv6)
-    # unset os detected as host when cross compiling
-    unset(APPLE)
-    unset(WIN32)
-    add_definitions(-DOS_RPI)
-    if(NOT RPI_VC_DIR)
-      if(${RPI_SYSROOT} MATCHES ".*/$")
-        set(RPI_VC_DIR ${RPI_SYSROOT}opt/vc)
-      else()
-        set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
-      endif()
+  endif()
+endif()
+if(RPI)
+  if(NOT RPI_SYSROOT OR RPI_SYSROOT STREQUAL /)
+    message("Raspberry Pi host build")
+  else()
+    message("Raspberry Pi cross build")
+    set(CMAKE_CROSSCOMPILING TRUE)
+  endif()
+  #set(CMAKE_SYSTEM_PROCESSOR armv6)
+  set(OS rpi)
+  set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
+  # unset os detected as host when cross compiling
+  unset(APPLE)
+  unset(WIN32)
+  add_definitions(-DOS_RPI)
+  if(NOT RPI_VC_DIR)
+    if(${RPI_SYSROOT} MATCHES ".*/$")
+      set(RPI_VC_DIR ${RPI_SYSROOT}opt/vc)
+    else()
+      set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
     endif()
   endif()
 endif()
+
 
 if(NOT ARCH)
   set(ARCH x86)
@@ -448,8 +438,8 @@ function(set_rpath)
   if(APPLE)
     list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
-  else()
-      list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib") #. /usr/local/lib:$ORIGIN
+  elseif(NOT CYGWIN)
+    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
   endif()
   foreach(p ${RPATH_DIRS})
