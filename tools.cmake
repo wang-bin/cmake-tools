@@ -1,3 +1,10 @@
+# This file is part of the cmake-tools project. It was retrieved from
+# https://github.com/wang-bin/cmake-tools
+#
+# The cmake-tools project is licensed under the new MIT license.
+#
+# Copyright (c) 2017, Wang Bin
+##
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 if(TOOLS_CMAKE_INCLUDED)
@@ -51,8 +58,10 @@ if(RPI)
       set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
     endif()
   endif()
+  if(USE_LIBCXX)
+    link_libraries(-lsupc++) # __cxa_thread_atexit is defined in supc++. need libc++abi? android defines it in libc++abi
+  endif()
 endif()
-
 
 if(NOT ARCH)
   set(ARCH x86)
@@ -438,7 +447,7 @@ function(set_rpath)
   if(APPLE)
     list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
-  elseif(NOT CYGWIN)
+  else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
   endif()
