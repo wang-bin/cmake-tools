@@ -15,6 +15,7 @@ set(TOOLS_CMAKE_INCLUDED 1)
 option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
 option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. TRUE: max parallelism" 0)
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
+option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
@@ -311,6 +312,11 @@ if(USE_LTO)
 endif()
 
 
+if(SANITIZE)
+  add_compile_options(-fno-omit-frame-pointer -fsanitize=address)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+endif()
 #include_directories($ENV{UNIVERSALCRTSDKDIR}/Include/$ENV{WINDOWSSDKVERSION}/ucrt)
 # starts with "-": treated as a link flag. VC: starts with "/" and treated as a path
 
@@ -338,6 +344,9 @@ if(NOT CMAKE_OBJCOPY)
 endif()
 # mkdsym: create debug symbol file and strip original file.
 function(mkdsym tgt)
+  if(SANITIZE)
+    return()
+  endif()
   # TODO: find objcopy in target tools (e.g. clang toolchain)
   # TODO: apple support
   if(CMAKE_OBJCOPY)
