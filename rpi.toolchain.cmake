@@ -14,14 +14,15 @@ set(CMAKE_SYSTEM_PROCESSOR armv6)
 set(CMAKE_C_COMPILER clang-5.0)
 set(CMAKE_CXX_COMPILER clang++-5.0)
 set(USE_LIBCXX TRUE)
-set(RPI_FLAGS "-stdlib=libc++ -target arm-rpi-linux-gnueabihf -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -marm")
+set(RPI_FLAGS "--target=arm-rpi-linux-gnueabihf -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -marm")
+set(RPI_FLAGS_CXX "-stdlib=libc++")
 # Sysroot.
 if(NOT RPI_SYSROOT)
   set(RPI_SYSROOT $ENV{RPI_SYSROOT})
 endif()
 set(CMAKE_SYSROOT ${RPI_SYSROOT})
 
-# llvm-ar support all kinds of file, including bitcode
+# TODO: llvm-ar for all host platforms. support all kinds of file, including bitcode
 # llvm-ranlib is for bitcode. but seems works for others. "llvm-ar -s" should be better
 # macOS system ranlib does not work
 execute_process(
@@ -42,9 +43,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_SYSROOT_COMPILE "${CMAKE_SYSROOT}")
 
 set(RPI_CC_FLAGS "-g")
-set(RPI_LD_FLAGS "-Wl,--build-id -s -fuse-ld=lld")
+set(RPI_LD_FLAGS "-Wl,--build-id -fuse-ld=lld") # -s: strip
 # Debug and release flags.
-set(RPI_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info") #-s strip
+set(RPI_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info")
 set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 # Set or retrieve the cached flags. Without these compiler probing may fail!
@@ -60,7 +61,7 @@ set(CMAKE_ASM_FLAGS_RELEASE "" CACHE STRING "Flags used by the compiler during r
 set(CMAKE_MODULE_LINKER_FLAGS "" CACHE STRING "Flags used by the linker during the creation of modules.")
 set(CMAKE_SHARED_LINKER_FLAGS "" CACHE STRING "Flags used by the linker during the creation of dll's.")
 set(CMAKE_EXE_LINKER_FLAGS "" CACHE STRING "Flags used by the linker.")
-   
+
 set(CMAKE_C_FLAGS             "${RPI_FLAGS} ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS           "${RPI_FLAGS} ${RPI_FLAGS_CXX} ${CMAKE_CXX_FLAGS}")
 set(CMAKE_ASM_FLAGS           "${RPI_FLAGS} ${CMAKE_ASM_FLAGS}")
