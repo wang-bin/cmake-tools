@@ -182,17 +182,38 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
   endif()
 endif()
 
+# TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
+function(enable_ldflags_if var flags)
+  string(STRIP "${flags}" flags_stripped)
+  if("${flags_stripped}" STREQUAL "")
+    return()
+  endif()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES "${flags_stripped}") # CMAKE_REQUIRED_LIBRARIES scope is function local
+  if(NOT MSVC)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "-Werror") # unsupported flags can be a warning (clang)
+  endif()
+  unset(HAVE_LDFLAG_${var} CACHE) # cached by check_cxx_compiler_flag
+  check_cxx_compiler_flag("" HAVE_LDFLAG_${var})
+  if(HAVE_LDFLAG_${var})
+    set(V "${${var}} ${flags_stripped}")
+    string(STRIP "${V}" V)
+    set(${var} ${V} PARENT_SCOPE)
+  endif()
+endfunction()
+
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
-check_c_compiler_flag("-Werror -ffunction-sections -Wl,--as-needed -Wl,--gc-sections" HAVE_GCSECTIONS)
-if(HAVE_GCSECTIONS)
+check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
+if(HAVE_FUNCTION_SECTIONS)
   set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
-  set(DCE_LFLAGS "-Wl,--as-needed -Wl,--gc-sections")
   if(NOT WIN32) # mingw gcc will increase size
     list(APPEND DCE_CFLAGS -fdata-sections)
   endif()
 endif()
+enable_ldflags_if(GC_SECTIONS "-Wl,--gc-sections")
+enable_ldflags_if(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
+string(STRIP "${AS_NEEDED} ${GC_SECTIONS}" DCE_LFLAGS)
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 if(DCE_CFLAGS)
   add_compile_options(${DCE_CFLAGS})
@@ -365,41 +386,26 @@ function(mkres files)
     endforeach()
 endfunction()
 
-function(enable_ldflags_if var flags)
-  string(STRIP "${flags}" flags_stripped)
-  if("${flags_stripped}" STREQUAL "")
-    return()
-  endif()
-  list(APPEND CMAKE_REQUIRED_LIBRARIES "${flags_stripped}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
-  unset(HAVE_LDFLAG_${var} CACHE) # cached by check_cxx_compiler_flag
-  check_cxx_compiler_flag("" HAVE_LDFLAG_${var})
-  if(HAVE_LDFLAG_${var})
-    set(V "${${var}} ${flags_stripped}")
-    string(STRIP "${V}" V)
-    set(${var} ${V} PARENT_SCOPE)
-  endif()
-endfunction()
-
 # TODO: check target is a SHARED library
 function(set_relocatable_flags)
   if(MSVC)
   else()
 # can't use with -shared. -dynamic(apple) is fine. -shared is set in CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS, so we may add another library type RELOCATABLE in add_library
-    enable_ldflags_if(LD_FLAGS "-r -nostdlib")
+    enable_ldflags_if(RELOBJ "-r -nostdlib")
   endif()
-  if(LD_FLAGS)
+  if(RELOBJ)
     list(LENGTH ARGN _nb_args)
     if(_nb_args GREATER 0)
       foreach(t ${ARGN})
         get_target_property(${t}_reloc ${t} RELOCATABLE)
         if(${t}_reloc)
-          message("set ro flags: ${LD_FLAGS}")
-          set_property(TARGET ${t} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
+          message("set ro flags: ${RELOBJ}")
+          set_property(TARGET ${t} APPEND_STRING PROPERTY LINK_FLAGS "${RELOBJ}")
         endif()
       endforeach()
-      #set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
+      #set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${RELOBJ}")
     else()
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
+      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RELOBJ}" PARENT_SCOPE)
     endif()
   endif()
 endfunction()
@@ -411,22 +417,18 @@ endfunction()
 # exclude_libs_all([target1 [target2 ...]])
 # exporting symbols excluding all depended static libs
 function(exclude_libs_all)
-  if(NOT MSVC)
-    if(NOT APPLE) # check APPLE is enough because no other linker available on apple. what about llvm lld?
-      set(LD_FLAGS "${LD_FLAGS} -Wl,--exclude-libs,ALL") # prevent to export external lib apis
-    endif()
-  endif()
-  if(NOT LD_FLAGS)
-    message("no ld support")
+  # TODO: check APPLE is enough because no other linker available on apple? what about llvm lld?
+  enable_ldflags_if(EXCLUDE_ALL "-Wl,--exclude-libs,ALL") # prevent to export external lib apis
+  if(NOT EXCLUDE_ALL)
     return()
   endif()
   list(LENGTH ARGN _nb_args)
   if(_nb_args GREATER 0)
-    #set_target_properties(${ARGN} PROPERTIES LINK_FLAGS "${LD_FLAGS}") # not append
-    set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${LD_FLAGS}")
+    #set_target_properties(${ARGN} PROPERTIES LINK_FLAGS "${EXCLUDE_ALL}") # not append
+    set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${EXCLUDE_ALL}")
   else()
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LD_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${EXCLUDE_ALL}" PARENT_SCOPE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${EXCLUDE_ALL}" PARENT_SCOPE)
   endif()
 # CMAKE_LINK_SEARCH_START_STATIC
 endfunction()
