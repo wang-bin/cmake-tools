@@ -190,8 +190,11 @@ function(enable_ldflags_if var flags)
     return()
   endif()
   list(APPEND CMAKE_REQUIRED_LIBRARIES "${flags_stripped}") # CMAKE_REQUIRED_LIBRARIES scope is function local
-  if(NOT MSVC)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES "-Werror") # unsupported flags can be a warning (clang)
+  # unsupported flags can be a warning (clang, vc)
+  if(MSVC)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "/WX") # FIXME: why -WX does not work?
+  else()
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "-Werror")
   endif()
   unset(HAVE_LDFLAG_${var} CACHE) # cached by check_cxx_compiler_flag
   check_cxx_compiler_flag("" HAVE_LDFLAG_${var})
