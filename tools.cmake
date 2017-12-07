@@ -244,18 +244,23 @@ if(ANDROID)
       set(ANDROID_STL_LIB_DIR ${ANDROID_NDK}/sources/cxx-stl/gnu-libstdc++/${CMAKE_ANDROID_NDK_TOOLCHAIN_VERSION}/libs/${ANDROID_ABI})
     endif()
   endif()
+  # stl link dir may be defined in ${ANDROID_LINKER_FLAGS}
+  if(NOT CMAKE_SHARED_LINKER_FLAGS MATCHES "${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_NDK}/sources/cxx-stl")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
+  endif()
   if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
     # g++ has no -stdlib option. clang default stdlib is -lstdc++. we change it to libc++ to avoid linking against libstdc++
     # -stdlib=libc++ will find libc++.so, while android ndk has no such file. libc++.a is a linker script. Seems can be used for shared libc++
     #file(WRITE ${CMAKE_BINARY_DIR}/libc++.so "INPUT(-lc++_shared)") # SEARCH_DIR() is only valid for -Wl,-T
     #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${CMAKE_BINARY_DIR} -stdlib=libc++")
     #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${CMAKE_BINARY_DIR} -stdlib=libc++")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -stdlib=libc++")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -stdlib=libc++")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
   else()
   # adding -lgcc in CMAKE_SHARED_LINKER_FLAGS will fail to link. add to target_link_libraries() or CMAKE_CXX_STANDARD_LIBRARIES_INIT in toolchain file
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR} -nodefaultlibs -lc")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -nodefaultlibs -lc")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -nodefaultlibs -lc")
   endif()
   if(CMAKE_SHARED_LINKER_FLAGS MATCHES "-nodefaultlibs" OR ANDROID_STL MATCHES "_static") # g++ or static libc++ -nodefaultlibs/-nostdlib. libgcc defines __emutls_get_address (and more), x86 may require libdl
     link_libraries(-lgcc -ldl) # requires cmake_policy(SET CMP0022 NEW)
