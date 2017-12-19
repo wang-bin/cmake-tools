@@ -22,12 +22,17 @@ if(NOT RPI_SYSROOT)
 endif()
 set(CMAKE_SYSROOT ${RPI_SYSROOT})
 
-# TODO: llvm-ar for all host platforms. support all kinds of file, including bitcode
 # llvm-ranlib is for bitcode. but seems works for others. "llvm-ar -s" should be better
 # macOS system ranlib does not work
 execute_process(
     COMMAND ${CMAKE_C_COMPILER} -print-prog-name=llvm-ranlib
     OUTPUT_VARIABLE CMAKE_RANLIB
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# llvm-ar for all host platforms. support all kinds of file, including bitcode
+execute_process(
+    COMMAND ${CMAKE_C_COMPILER} -print-prog-name=llvm-ar
+    OUTPUT_VARIABLE CMAKE_LLVM_AR
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
@@ -49,6 +54,7 @@ set(RPI_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info")
 set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 # Set or retrieve the cached flags. Without these compiler probing may fail!
+set(CMAKE_AR "" CACHE STRING "")
 set(CMAKE_C_FLAGS "" CACHE STRING "Flags used by the compiler during all build types.")
 set(CMAKE_CXX_FLAGS "" CACHE STRING "Flags used by the compiler during all build types.")
 set(CMAKE_ASM_FLAGS "" CACHE STRING "Flags used by the compiler during all build types.")
@@ -62,6 +68,7 @@ set(CMAKE_MODULE_LINKER_FLAGS "" CACHE STRING "Flags used by the linker during t
 set(CMAKE_SHARED_LINKER_FLAGS "" CACHE STRING "Flags used by the linker during the creation of dll's.")
 set(CMAKE_EXE_LINKER_FLAGS "" CACHE STRING "Flags used by the linker.")
 
+set(CMAKE_AR                  "${CMAKE_LLVM_AR}")
 set(CMAKE_C_FLAGS             "${RPI_FLAGS} ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS           "${RPI_FLAGS} ${RPI_FLAGS_CXX} ${CMAKE_CXX_FLAGS}")
 set(CMAKE_ASM_FLAGS           "${RPI_FLAGS} ${CMAKE_ASM_FLAGS}")
