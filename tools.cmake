@@ -217,7 +217,11 @@ if(HAVE_FUNCTION_SECTIONS)
 endif()
 enable_ldflags_if(GC_SECTIONS "-Wl,--gc-sections")
 enable_ldflags_if(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
-string(STRIP "${AS_NEEDED} ${GC_SECTIONS}" DCE_LFLAGS)
+if(WIN32)
+  enable_ldflags_if(OPT_REF "-opt:ref") # CMAKE_LINKER is link.exe, lld-link. -opt:icf is turned on
+  #enable_ldflags_if(OPT_REF "-Wl,-opt:ref") # CMAKE_LINKER is lld-link. but cmake only supports clang-cl, so -Wl is not supported
+endif()
+string(STRIP "${AS_NEEDED} ${GC_SECTIONS} ${OPT_REF}" DCE_LFLAGS)
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 if(DCE_CFLAGS)
   add_compile_options(${DCE_CFLAGS})
