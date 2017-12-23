@@ -79,7 +79,16 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   set(WINSTORE 1)
   set(WIN32 1) ## defined in cmake?
   set(OS WinRT)
-  # TODO: add cc/ld flags
+  if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+    # SEH?
+    if(WINDOWS_PHONE)
+      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603
+    else()
+      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
+    endif()
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /opt:ref /APPCONTAINER /NODEFAULTLIB:kernel32.lib /NODEFAULTLIB:ole32.lib")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /opt:ref /APPCONTAINER /NODEFAULTLIB:kernel32.lib /NODEFAULTLIB:ole32.lib")
+  endif()
 endif()
 
 if(WINDOWS_XP AND MSVC AND NOT WINSTORE)
