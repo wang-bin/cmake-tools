@@ -7,6 +7,7 @@
 ##
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
+# harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -125,6 +126,9 @@ if(NOT OS)
   endif()
 endif()
 
+if(APPLE)
+  set(CMAKE_INSTALL_NAME_DIR "@rpath")
+endif()
 # TODO: function ensure_cxx11
 if(NOT CMAKE_CXX_STANDARD LESS 11)
   if(APPLE)
