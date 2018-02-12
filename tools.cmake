@@ -59,12 +59,6 @@ if(RPI)
       set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
     endif()
   endif()
-  if(USE_LIBCXX)
-# clang generates __cxa_thread_atexit for thread_local, but armhf libc++abi is too old. linking to supc++, libstdc++ results in duplicated symbols when linking static libc++. so never link to supc++. rename to glibc has __cxa_thread_atexit_impl!
-# link to libc++abi?
-    link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl)
-    #link_libraries(-lsupc++)
-  endif()
 endif()
 
 if(NOT ARCH)
