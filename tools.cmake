@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017, Wang Bin
+# Copyright (c) 2017-2018, Wang Bin
 ##
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
@@ -40,7 +40,7 @@ else()
   endif()
 endif()
 if(RPI)
-  if(NOT RPI_SYSROOT OR RPI_SYSROOT STREQUAL /)
+  if(EXISTS /dev/vchiq)
     message("Raspberry Pi host build")
   else()
     message("Raspberry Pi cross build")
@@ -60,7 +60,10 @@ if(RPI)
     endif()
   endif()
   if(USE_LIBCXX)
-    link_libraries(-lsupc++) # __cxa_thread_atexit is defined in supc++. need libc++abi? android defines it in libc++abi
+# clang generates __cxa_thread_atexit for thread_local, but armhf libc++abi is too old. linking to supc++, libstdc++ results in duplicated symbols when linking static libc++. so never link to supc++. rename to glibc has __cxa_thread_atexit_impl!
+# link to libc++abi?
+    link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl)
+    #link_libraries(-lsupc++)
   endif()
 endif()
 
