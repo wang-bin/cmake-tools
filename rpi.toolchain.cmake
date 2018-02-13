@@ -29,7 +29,10 @@ else()
 endif()
 
 set(USE_STD_TLS ON)
+
+# flags for both compiler and linker
 set(RPI_FLAGS "--target=arm-rpi-linux-gnueabihf -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -marm")
+set(RPI_FLAGS_CXX)
 
 # Sysroot.
 if(NOT RPI_SYSROOT)
@@ -67,17 +70,21 @@ set(RPI_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info")
 set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 if(USE_LIBCXX)
-  set(RPI_FLAGS_CXX "-stdlib=libc++")
   if(CMAKE_CROSSCOMPILING)
-    #set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -iwithsysroot /usr/include/c++/v1") # clang always search libc++ in host toolchain, so have conflication
+    # clang always search libc++ in host toolchain and results in conflict(include_next)
+    add_compile_options(-nostdinc++ -iwithsysroot /usr/include/c++/v1)
+    # -stdlib=libc++ is not required if -nostdinc++ is set(otherwise warnings)
+    set(RPI_LD_FLAGS "${RPI_LD_FLAGS} -stdlib=libc++")
+  else()
+    set(RPI_FLAGS_CXX "-stdlib=libc++")
   endif()
-# clang generates __cxa_thread_atexit for thread_local, but armhf libc++abi is too old. linking to supc++, libstdc++ results in duplicated symbols when linking static libc++. so never link to supc++. rename to glibc has __cxa_thread_atexit_impl!
+  # clang generates __cxa_thread_atexit for thread_local, but armhf libc++abi is too old. linking to supc++, libstdc++ results in duplicated symbols when linking static libc++. so never link to supc++. rename to glibc has __cxa_thread_atexit_impl!
 # link to libc++abi?
   link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl)
   #link_libraries(-lsupc++)
 else()
   if(CMAKE_CROSSCOMPILING) # FIXME: math.h declaration conflicts with target of using declaration already in scope. try g++4.9
-    set(RPI_FLAGS_CXX "-iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7 -iwithsysroot /usr/include/c++/7")
+    add_compile_options("-iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7 -iwithsysroot /usr/include/c++/7")
   endif()
 endif()
 
@@ -91,10 +98,10 @@ macro(rpi_cc_clang lang)
 endmacro()
 
 if(CLANG_AS_LINKER)
-  set(RPI_LD_FLAGS "-Wl,--build-id -fuse-ld=lld") # -s: strip
+  set(RPI_LD_FLAGS "${RPI_LD_FLAGS} -Wl,--build-id -fuse-ld=lld") # -s: strip
 else()
   set(CMAKE_LINKER lld)
-  set(RPI_LD_FLAGS "--build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
+  set(RPI_LD_FLAGS "${RPI_LD_FLAGS} --build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
   rpi_cc_clang(C)
   rpi_cc_clang(CXX)
 endif()
