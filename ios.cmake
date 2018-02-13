@@ -40,6 +40,8 @@
 # It has been altered for iOS development.
 #
 # Updated by Alex Stewart (alexs.mac@gmail.com).
+#
+###################################################################################################################################
 # Updated by Wang Bin (wbsecg1@gmail.com) (support IOS_ARCH, IOS_BITCODE, IOS_EMBEDDED_FRAMEWORK)
 # The following variables control the behaviour of this toolchain:
 # IOS_ARCH: Architectures being compiled for. Multiple architectures are seperated by ";". It MUST be set.
@@ -70,8 +72,16 @@
 ## TODO: bitcode (ld: warning: -headerpad_max_install_names (in CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS in Darwin.cmake) is ignored when used with -bitcode_bundle (Xcode setting ENABLE_BITCODE=YES))
 ## TODO: cmake object target in xcode is in wrong type
 # TODO: CMAKE_SYSTEM_NAME to  tvos, watchos etc.
-# FIXME: duplicate
+
 set(CMAKE_CROSSCOMPILING TRUE)    # stop recursion
+# Standard settings.
+set(CMAKE_SYSTEM_NAME Darwin) # iOS is unknown to cmake. if use Darwin, macOS sdk sysroot will be set
+set(CMAKE_SYSTEM_VERSION ${IOS_SDK_VERSION})
+set(UNIX TRUE)
+set(APPLE TRUE)
+set(IOS TRUE)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
 
 execute_process(COMMAND xcodebuild -version
   OUTPUT_VARIABLE XCODE_VERSION
@@ -107,7 +117,7 @@ if(NOT DEFINED IOS_UNIVERSAL)
   endif()
 endif()
 
-if(NOT DEFINED IOS_BITCODE) #TODO: check xcode version. since xcode 7
+if(NOT DEFINED IOS_BITCODE) # check xcode/clang version? since xcode 7
   set(IOS_BITCODE 1)
 endif()
 # Determine the platform name and architectures for use in xcodebuild commands
@@ -139,38 +149,14 @@ if (NOT DEFINED IOS_SDK_VERSION)
     ERROR_QUIET
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
-if (NOT DEFINED CMAKE_C_COMPILER) #optional
-  execute_process(COMMAND xcrun -sdk ${IOS_SDK} -find clang
-    OUTPUT_VARIABLE CMAKE_C_COMPILER
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  message(STATUS "Using C compiler: ${CMAKE_C_COMPILER}")
-endif()
-if (NOT DEFINED CMAKE_CXX_COMPILER) #optional
-  execute_process(COMMAND xcrun -sdk ${IOS_SDK} -find clang++
-    OUTPUT_VARIABLE CMAKE_CXX_COMPILER
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  message(STATUS "Using CXX compiler: ${CMAKE_CXX_COMPILER}")
-endif()
-if (NOT DEFINED IOS_LIBTOOL) #optional
-  execute_process(COMMAND xcrun -sdk ${IOS_SDK} -find libtool
-    OUTPUT_VARIABLE IOS_LIBTOOL
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  message(STATUS "Using libtool: ${IOS_LIBTOOL}")
-endif()
 # Specify minimum version of deployment target.
 # Unless specified, the latest SDK version is used by default.
 set(IOS_DEPLOYMENT_TARGET "${IOS_SDK_VERSION}" CACHE STRING "Minimum iOS version to build for." )
 message(STATUS "Building for minimum iOS version: ${IOS_DEPLOYMENT_TARGET} (SDK version: ${IOS_SDK_VERSION})")
 set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "${IOS_DEPLOYMENT_TARGET}")
 
-# avoid duplicates
-#set(XARCH_CFLAGS "" CACHE STRING "" FORCE)
-#set(XARCH_LFLAGS "" CACHE STRING "" FORCE)
 if(IOS_DEPLOYMENT_TARGET VERSION_LESS 7.0) # gnu stl does not support c++11
-  set(CXX_FLAGS -stdlib=libc++) #TODO: check c++11
+  set(CXX_FLAGS -stdlib=libc++)
   if(IOS_DEPLOYMENT_TARGET VERSION_LESS 6.0)
     message("bitcode is disabled for iOS < 6.0") # link error if not static lib
     set(IOS_BITCODE 0)
@@ -192,7 +178,6 @@ else()
   set(CMAKE_XCODE_ATTRIBUTE_OTHER_LDFLAGS "-r") # why must add manually?
 ]]
 endif()
-message("IOS_EMBEDDED_FRAMEWORK: ${IOS_EMBEDDED_FRAMEWORK}")
 
 macro(set_xarch_flags arch)
   unset(XARCH_VERSION_FLAGS)
@@ -204,9 +189,9 @@ macro(set_xarch_flags arch)
     if (XCODE_VERSION VERSION_LESS 7.0)
       set(XARCH_OS ios)
     endif()
-    set(XARCH_VERSION_FLAGS "-m${XARCH_OS}-version-min=${IOS_DEPLOYMENT_TARGET}")
+    set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=${IOS_DEPLOYMENT_TARGET})
     if("${arch}" MATCHES "arm64" AND IOS_DEPLOYMENT_TARGET VERSION_LESS 7.0)
-      set(XARCH_VERSION_FLAGS "-m${XARCH_OS}-version-min=7.0")
+      set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=7.0)
     endif()
   else()
     set(XARCH_SDK iphonesimulator)
@@ -214,9 +199,9 @@ macro(set_xarch_flags arch)
     if (XCODE_VERSION VERSION_LESS 7.0)
       set(XARCH_OS ios-simulator)
     endif()
-    set(XARCH_VERSION_FLAGS "-m${XARCH_OS}-version-min=${IOS_DEPLOYMENT_TARGET}")
+    set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=${IOS_DEPLOYMENT_TARGET})
     if("${arch}" MATCHES "x86_64" AND IOS_DEPLOYMENT_TARGET VERSION_LESS 7.0)
-      set(XARCH_VERSION_FLAGS "-m${XARCH_OS}-version-min=7.0")
+      set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=7.0)
     endif()
   endif()
   execute_process(COMMAND xcrun -sdk ${XARCH_SDK} --show-sdk-path
@@ -234,6 +219,7 @@ macro(set_xarch_flags arch)
   endif()
   # TODO: precompile header -Xarch_xxx -include
 endmacro()
+# can not use add_compile_options() for arguments with values because they will be treated as separated options and duplicated options will be removed, e.g. -arch removed but armv7 keept, can not use quote
 
 if (NOT DEFINED XARCH_CFLAGS)
   foreach(a ${IOS_ARCH})
@@ -249,11 +235,6 @@ set(CMAKE_XCODE_ATTRIBUTE_VALID_ARCHS[sdk=iphoneos*] "${IOS_DEVICE_ARCH}")
 set(CMAKE_XCODE_ATTRIBUTE_ARCHS[sdk=iphonesimulator*] "${IOS_SIMULATOR_ARCH}")
 set(CMAKE_XCODE_ATTRIBUTE_VALID_ARCHS[sdk=iphonesimulator*] "${IOS_SIMULATOR_ARCH}")
 
-# Configure libtool to be used instead of ar + ranlib to build static libraries.
-# This is required on Xcode 7+, but should also work on previous versions of
-# Xcode.
-set(CMAKE_C_CREATE_STATIC_LIBRARY "${IOS_LIBTOOL} -static -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
-set(CMAKE_CXX_CREATE_STATIC_LIBRARY "${IOS_LIBTOOL} -static -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
 # Export configurable variables for the try_compile() command.
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   IOS_ARCH
@@ -264,18 +245,11 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   IOS_SDK
 )
 
-# Standard settings.
-set(CMAKE_SYSTEM_NAME Darwin) # iOS is unknown to cmake. if use Darwin, macOS sdk sysroot will be set
-set(CMAKE_SYSTEM_VERSION ${IOS_SDK_VERSION})
-set(UNIX TRUE)
-set(APPLE TRUE)
-set(IOS TRUE)
 # Force unset of OS X-specific deployment target (otherwise autopopulated),
 # required as of cmake 2.8.10.
 set(CMAKE_OSX_DEPLOYMENT_TARGET "" CACHE STRING "Must be empty for iOS builds." FORCE)
 # Set the architectures for which to build. required by try_compile()
 set(CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE STRING "iOS architectures" FORCE)
-message("CMAKE_OSX_ARCHITECTURES: ${CMAKE_OSX_ARCHITECTURES}")
 # Skip the platform compiler checks for cross compiling.
 if(IOS_UNIVERSAL)
   if(CMAKE_GENERATOR MATCHES "Xcode")
@@ -286,27 +260,6 @@ if(IOS_UNIVERSAL)
 else()
   set(CMAKE_OSX_SYSROOT "${IOS_SDK}")
 endif()
-set(CMAKE_CXX_COMPILER_FORCED TRUE)
-set(CMAKE_CXX_COMPILER_WORKS TRUE)
-set(CMAKE_C_COMPILER_FORCED TRUE)
-set(CMAKE_C_COMPILER_WORKS TRUE)
-set(CMAKE_C_COMPILER_ID_RUN TRUE)
-set(CMAKE_CXX_COMPILER_ID_RUN TRUE)
-set(CMAKE_C_COMPILER_ID AppleClang)
-set(CMAKE_CXX_COMPILER_ID AppleClang)
-
-# In order to ensure that the updated compiler flags are used in try_compile()
-# tests, we have to forcibly set them in the CMake cache, not merely set them
-# in the local scope.
-list(APPEND VARS_TO_FORCE_IN_CACHE
-    CMAKE_C_FLAGS
-    CMAKE_CXX_FLAGS
-    CMAKE_CXX_FLAGS_RELEASE
-    CMAKE_SHARED_LINKER_FLAGS
-  )
-foreach(VAR_TO_FORCE ${VARS_TO_FORCE_IN_CACHE})
-  set(${VAR_TO_FORCE} "" CACHE STRING "" FORCE)
-endforeach()
 
 set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE ${IOS_BITCODE})
 if(IOS_BITCODE)
@@ -314,24 +267,20 @@ if(IOS_BITCODE)
 endif()
 # ld: '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/arc/libarclite_iphonesimulator.a(arclite.o)' does not contain bitcode. You must rebuild it with bitcode enabled (Xcode setting ENABLE_BITCODE), obtain an updated library from the vendor, or disable bitcode for this target. for architecture x86_64
 
-set(CMAKE_C_FLAGS "${XARCH_CFLAGS} ${CMAKE_C_FLAGS} -fobjc-abi-version=2") # -fobjc-arc
-# Hidden visibilty is required for C++ on iOS.
-set(CMAKE_CXX_FLAGS "${XARCH_CFLAGS} ${CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden ${CMAKE_CXX_FLAGS} -fobjc-abi-version=2") # -fobjc-arc
-set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 ${CMAKE_CXX_FLAGS_RELEASE}")
 if(CMAKE_GENERATOR MATCHES "Xcode")
 else()
-  set(CMAKE_C_FLAGS "${XARCH_CFLAGS} ${CMAKE_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${XARCH_CFLAGS} ${CMAKE_CXX_FLAGS}")
   if(IOS_BITCODE)
-    set(CMAKE_C_FLAGS "-fembed-bitcode ${CMAKE_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "-fembed-bitcode ${CMAKE_CXX_FLAGS}")
+    set(BITCODE_FLAGS "-fembed-bitcode")
   endif()
   if(NOT IOS_EMBEDDED_FRAMEWORK)
   # -r: relocatable object, only static dependency is needed. Adding shared libs like libc++ and libSystem will generate warnings
   # xcode: LINK_WITH_STANDARD_LIBRARIES = NO; MACH_O_TYPE = mh_object;
-    set(CMAKE_SHARED_LINKER_FLAGS "-r -nostdlib ${CMAKE_SHARED_LINKER_FLAGS}")
+    #set(CMAKE_SHARED_LINKER_FLAGS "-r -nostdlib"  CACHE INTERNAL "ios shared linker flags" FORCE) # will affect all dso, let user enable in their project for a given target will be better
   endif()
 endif()
+set(CMAKE_C_FLAGS "${XARCH_CFLAGS} ${BITCODE_FLAGS} -fobjc-abi-version=2" CACHE INTERNAL "ios c compiler flags" FORCE) # -fobjc-arc
+set(CMAKE_CXX_FLAGS "${XARCH_CFLAGS} ${BITCODE_FLAGS} ${CXX_FLAGS} -fobjc-abi-version=2" CACHE INTERNAL "ios c compiler flags" FORCE) # -fobjc-arc
+
 set(CMAKE_FIND_ROOT_PATH 
   ${IOS_SDK_PATH}
   ${CMAKE_PREFIX_PATH}
