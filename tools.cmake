@@ -301,6 +301,31 @@ if(ANDROID)
   set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
 endif()
 
+
+if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING AND EXISTS /usr/local/include)
+  include_directories(/usr/local/include)
+  list(APPEND EXTRA_LIB_DIR /usr/local/lib)
+endif()
+if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/include)
+  include_directories(${${PROJECT_NAME}_SOURCE_DIR}/include)
+endif()
+if(RPI)
+  include_directories(${RPI_VC_DIR}/include)
+endif()
+
+if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/external/lib/${OS}/${ARCH})
+  list(APPEND EXTRA_LIB_DIR "${${PROJECT_NAME}_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
+endif()
+if(EXISTS ${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH})
+  list(APPEND EXTRA_LIB_DIR "${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
+endif()
+if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/external/include)
+  include_directories(${${PROJECT_NAME}_SOURCE_DIR}/external/include)
+endif()
+if(EXISTS ${CMAKE_SOURCE_DIR}/external/include)
+  include_directories(${CMAKE_SOURCE_DIR}/external/include)
+endif()
+
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
 # If parallel lto is not supported, fallback to single job lto
 # TODO: lld linker (e.g. for COFF /opt:lldltojobs=N)
@@ -447,7 +472,7 @@ function(set_relocatable_flags)
       foreach(t ${ARGN})
         get_target_property(${t}_reloc ${t} RELOCATABLE)
         if(${t}_reloc)
-          message("set ro flags: ${RELOBJ}")
+          message("set relocatable object flags for target ${t}")
           set_property(TARGET ${t} APPEND_STRING PROPERTY LINK_FLAGS "${RELOBJ}")
         endif()
       endforeach()
@@ -473,7 +498,7 @@ function(exclude_libs_all)
   list(LENGTH ARGN _nb_args)
   if(_nb_args GREATER 0)
     #set_target_properties(${ARGN} PROPERTIES LINK_FLAGS "${EXCLUDE_ALL}") # not append
-    set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${EXCLUDE_ALL}")
+    set_property(TARGET ${ARGN} APPEND_STRING PROPERTY LINK_FLAGS "${EXCLUDE_ALL}") # APPEND PROPERTY
   else()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${EXCLUDE_ALL}" PARENT_SCOPE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${EXCLUDE_ALL}" PARENT_SCOPE)
@@ -513,6 +538,52 @@ function(set_rpath)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
 endfunction()
 
+
+function(setup_dso_reloc tgt)
+  set_relocatable_flags(${tgt})
+  set_rpath()
+  exclude_libs_all(${tgt})
+  mkdsym(${tgt})  # MUST after VERSION set because VERSION is used un mkdsym for cmake <3.0
+endfunction()
+
+# setup_deploy: deploy sdk libs(and headers for apple) and runtime binaries
+function(setup_deploy tgt)
+  set(headers ${ARGN})
+  if(APPLE AND NOT IOS)
+    # macOS only
+    if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
+      add_custom_command(TARGET ${tgt} POST_BUILD
+        COMMAND install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${tgt}>
+      )
+    endif()
+    get_target_property(IS_FWK ${tgt} FRAMEWORK)
+    if(IS_FWK)
+      add_custom_command(TARGET ${tgt} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${headers} $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
+        # WORKING_DIRECTORY does not support generator expr
+    )
+    endif()
+  endif()
+
+  install(FILES ${headers}
+    DESTINATION include/${tgt}
+  )
+  install(TARGETS ${tgt}
+    EXPORT ${tgt}-targets
+    #PUBLIC_HEADER DESTINATION ${tgt}
+    #PRIVATE_HEADER DESTINATION ${tgt}/private
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    FRAMEWORK DESTINATION lib
+  )
+  install(EXPORT ${tgt}-targets
+    DESTINATION lib/cmake/${tgt}
+    FILE ${tgt}-config.cmake
+  )
+endfunction()
+
 # uninstall target
 configure_file(
     "${CMAKE_CURRENT_LIST_DIR}/cmake_uninstall.cmake.in"
@@ -521,4 +592,3 @@ configure_file(
 
 add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
-
