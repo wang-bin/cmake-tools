@@ -109,7 +109,7 @@ endif()
 # Set or retrieve the cached flags. Without these compiler probing may fail!
 
 set(CMAKE_LINER      "lld")
-set(CMAKE_AR         "${CMAKE_LLVM_AR}")
+set(CMAKE_AR         "${CMAKE_LLVM_AR}" CACHE INTERNAL "rpi ar" FORCE)
 set(CMAKE_C_FLAGS    "${RPI_FLAGS}" CACHE INTERNAL "rpi c compiler flags" FORCE)
 set(CMAKE_CXX_FLAGS  "${RPI_FLAGS} ${RPI_FLAGS_CXX}"  CACHE INTERNAL "rpi c++ compiler flags" FORCE)
 set(CMAKE_ASM_FLAGS  "${RPI_FLAGS}"  CACHE INTERNAL "rpi asm compiler flags" FORCE)
