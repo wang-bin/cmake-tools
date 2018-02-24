@@ -27,6 +27,13 @@ option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override
 option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. TRUE: max parallelism" 0)
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
+option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU 
+
+if(STATIC_LIBGCC)
+  #link_libraries(-static-libgcc) cmake2.8 CMP0022
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
