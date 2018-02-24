@@ -28,12 +28,8 @@ option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism.
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU 
-
-if(STATIC_LIBGCC)
-  #link_libraries(-static-libgcc) cmake2.8 CMP0022
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
-endif()
+option(NO_RTTI "Enable C++ rtti" ON)
+option(NO_EXCEPTIONS "Enable C++ exceptions" ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -334,6 +330,33 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH})
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/external/include)
   include_directories(${CMAKE_SOURCE_DIR}/external/include)
+endif()
+
+
+if(MSVC)
+  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+if(NO_RTTI)
+  if(MSVC)
+    if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
+      string(REPLACE "/GR" "-GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    endif()
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+    #add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fno-rtti;-fno-exceptions>")
+  endif()
+endif()
+if(NO_EXCEPTIONS)
+  if(MSVC)
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+  endif()
+endif()
+
+if(STATIC_LIBGCC)
+  #link_libraries(-static-libgcc) cmake2.8 CMP0022
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
 endif()
 
 # FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
