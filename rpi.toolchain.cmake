@@ -72,7 +72,8 @@ set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 if(USE_LIBCXX)
   if(CMAKE_CROSSCOMPILING)
     # clang always search libc++ in host toolchain and results in conflict(include_next)
-    add_compile_options(-nostdinc++ -iwithsysroot /usr/include/c++/v1)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-iwithsysroot;/usr/include/c++/v1>)
     # -stdlib=libc++ is not required if -nostdinc++ is set(otherwise warnings)
     link_libraries(-stdlib=libc++) #unlike RPI_LD_FLAGS, it will append flags to last
   else()
@@ -84,7 +85,7 @@ if(USE_LIBCXX)
   #link_libraries(-lsupc++)
 else()
   if(CMAKE_CROSSCOMPILING) # FIXME: math.h declaration conflicts with target of using declaration already in scope. try g++4.9
-    add_compile_options("-iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7 -iwithsysroot /usr/include/c++/7")
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-iwithsysroot;/usr/include/arm-linux-gnueabihf/c++/7;-iwithsysroot;/usr/include/c++/7>)
   endif()
 endif()
 
