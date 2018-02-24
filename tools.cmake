@@ -8,6 +8,16 @@
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
+
+# always set policies to ensure they are applied on every project's policy stack
+# include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
+if(POLICY CMP0022) # since 2.8.12. link_libraries()
+  cmake_policy(SET CMP0022 NEW)
+endif()
+if(POLICY CMP0063) # visibility. since 3.3
+  cmake_policy(SET CMP0063 NEW)
+endif()
+
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -18,13 +28,6 @@ option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism.
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 
-# include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
-if(POLICY CMP0022) # since 2.8.12. link_libraries()
-  cmake_policy(SET CMP0022 NEW)
-endif()
-if(POLICY CMP0063) # visibility. since 3.3
-  cmake_policy(SET CMP0063 NEW)
-endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -557,7 +560,7 @@ function(setup_dso_reloc tgt)
 endfunction()
 
 # setup_deploy: deploy sdk libs(and headers for apple) and runtime binaries
-function(setup_deploy tgt)
+function(setup_deploy tgt) # TODO: HEADERS, HEADERS_DIR
   set(headers ${ARGN})
   if(APPLE AND NOT IOS)
     # macOS only
