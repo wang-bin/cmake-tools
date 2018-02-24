@@ -18,6 +18,18 @@ option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism.
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 
+# include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
+if(POLICY CMP0022) # since 2.8.12. link_libraries()
+  cmake_policy(SET CMP0022 NEW)
+endif()
+if(POLICY CMP0063) # visibility. since 3.3
+  cmake_policy(SET CMP0063 NEW)
+endif()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -151,12 +163,6 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
     endif()
   endif()
   if(APPLE)
-    if(POLICY CMP0063)
-      cmake_policy(GET CMP0063 CMP0063_VAL)
-    endif()
-    if(NOT CMP0063_VAL OR CMP0063_VAL STREQUAL OLD)
-      message("Set CMP0063 to NEW to get better compatibility")
-    endif()
     # Check AppleClang requires cmake>=3.0 and set CMP0025 to NEW. FIXME: It's still Clang with ios toolchain file
     if(NOT CMAKE_C_COMPILER_ID STREQUAL AppleClang) #headers with objc syntax, clang attributes error
       if(CMAKE_C_COMPILER_ID STREQUAL Clang)
@@ -610,4 +616,3 @@ function(target_sources tgt)
   cmake_parse_arguments(TGT_SRC "${options}" "" "" ${ARGN})
   set_property(TARGET ${tgt} APPEND PROPERTY SOURCES ${TGT_SRC_UNPARSED_ARGUMENTS})
 endfunction(target_sources)
-
