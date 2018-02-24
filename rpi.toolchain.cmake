@@ -71,13 +71,13 @@ set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 if(USE_LIBCXX)
   if(CMAKE_CROSSCOMPILING)
-    # clang always search libc++ in host toolchain and results in conflict(include_next)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-iwithsysroot;/usr/include/c++/v1>)
+  # headers in clang builtin include dir(stddef.h etc.). -nobuiltininc makes cross build harder if a header is not found in sysroot(include_next stddef.h in /usr/include/linux/)
+    # clang always search libc++ in host toolchain, may mismatch with target libc++ version, and results in conflict(include_next)
+    set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -nostdinc++ -iwithsysroot /usr/include/c++/v1")
     # -stdlib=libc++ is not required if -nostdinc++ is set(otherwise warnings)
     link_libraries(-stdlib=libc++) #unlike RPI_LD_FLAGS, it will append flags to last
   else()
-    set(RPI_FLAGS_CXX "-stdlib=libc++")
+    set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -stdlib=libc++")
   endif()
   # clang generates __cxa_thread_atexit for thread_local, but armhf libc++abi is too old. linking to supc++, libstdc++ results in duplicated symbols when linking static libc++. so never link to supc++. rename to glibc has __cxa_thread_atexit_impl!
 # link to libc++abi?
@@ -85,7 +85,7 @@ if(USE_LIBCXX)
   #link_libraries(-lsupc++)
 else()
   if(CMAKE_CROSSCOMPILING) # FIXME: math.h declaration conflicts with target of using declaration already in scope. try g++4.9
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-iwithsysroot;/usr/include/arm-linux-gnueabihf/c++/7;-iwithsysroot;/usr/include/c++/7>)
+    set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7 -iwithsysroot /usr/include/c++/7")
   endif()
 endif()
 

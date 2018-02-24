@@ -169,7 +169,7 @@ endif()
 if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
   if(CMAKE_VERSION VERSION_LESS 3.1)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-      add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-std=c++${CMAKE_CXX_STANDARD}>)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++${CMAKE_CXX_STANDARD}") # $<COMPILE_LANGUAGE:CXX> requires cmake3.4+
     endif()
   endif()
   if(APPLE)
