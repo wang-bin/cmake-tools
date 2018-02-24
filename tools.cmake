@@ -314,26 +314,16 @@ if(ANDROID)
   set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
 endif()
 
-
+# project independent dirs
 if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING AND EXISTS /usr/local/include)
   include_directories(/usr/local/include)
   list(APPEND EXTRA_LIB_DIR /usr/local/lib)
 endif()
-if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/include)
-  include_directories(${${PROJECT_NAME}_SOURCE_DIR}/include)
-endif()
 if(RPI)
   include_directories(${RPI_VC_DIR}/include)
 endif()
-
-if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/external/lib/${OS}/${ARCH})
-  list(APPEND EXTRA_LIB_DIR "${${PROJECT_NAME}_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
-endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH})
   list(APPEND EXTRA_LIB_DIR "${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
-endif()
-if(EXISTS ${${PROJECT_NAME}_SOURCE_DIR}/external/include)
-  include_directories(${${PROJECT_NAME}_SOURCE_DIR}/external/include)
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/external/include)
   include_directories(${CMAKE_SOURCE_DIR}/external/include)
@@ -399,7 +389,7 @@ endif()
 
 # Find binutils
 if(NOT CMAKE_OBJCOPY)
-  message("Probing CMAKE_OBJCOPY...")
+  message(STATUS "Probing CMAKE_OBJCOPY...")
   if(ANDROID)
     set(CMAKE_OBJCOPY ${ANDROID_TOOLCHAIN_PREFIX}objcopy)
   elseif(DEFINED CROSS_PREFIX)
@@ -560,7 +550,7 @@ function(setup_dso_reloc tgt)
 endfunction()
 
 # setup_deploy: deploy sdk libs(and headers for apple) and runtime binaries
-function(setup_deploy tgt) # TODO: HEADERS, HEADERS_DIR
+function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
   set(headers ${ARGN})
   if(APPLE AND NOT IOS)
     # macOS only
