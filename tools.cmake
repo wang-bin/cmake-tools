@@ -592,3 +592,18 @@ configure_file(
 
 add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+
+
+################################### cmake compat layer ############################################
+if(NOT CMAKE_VERSION VERSION_LESS 3.1)
+  return()
+endif()
+function(target_sources tgt)
+  if(POLICY CMP0051) # for TARGET_OBJECTS in SOURCES property
+    cmake_policy(SET CMP0051 NEW)
+  endif()
+  set(options PUBLIC PRIVATE INTERFACE)
+  cmake_parse_arguments(TGT_SRC "${options}" "" "" ${ARGN})
+  set_property(TARGET ${tgt} APPEND PROPERTY SOURCES ${TGT_SRC_UNPARSED_ARGUMENTS})
+endfunction(target_sources)
+
