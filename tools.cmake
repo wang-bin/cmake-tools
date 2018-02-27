@@ -5,6 +5,11 @@
 #
 # Copyright (c) 2017-2018, Wang Bin
 ##
+# defined vars:
+# - EXTRA_INCLUDE
+# defined functions
+# -
+
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
@@ -324,12 +329,14 @@ if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING AND EXISTS /usr/local/include)
 endif()
 if(RPI)
   include_directories(${RPI_VC_DIR}/include)
+  list(APPEND EXTRA_INCLUDE ${RPI_VC_DIR}/include)
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH})
   list(APPEND EXTRA_LIB_DIR "${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/external/include)
   include_directories(${CMAKE_SOURCE_DIR}/external/include)
+  list(APPEND EXTRA_INCLUDE ${CMAKE_SOURCE_DIR}/external/include)
 endif()
 
 
