@@ -8,7 +8,7 @@
 # clang + lld to cross build apps for raspberry pi. can be easily change to other target platforms
 #
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
-option(USE_LIBCXX "use libc++ instead of libstdc++" ON)
+option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
 # "/usr/local/opt/llvm/bin/ld.lld" --sysroot=/Users/wangbin/dev/rpi/sysroot -pie -X --eh-frame-hdr -m armelf_linux_eabi -dynamic-linker /lib/ld-linux-armhf.so.3 -o test/audiodec /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/Scrt1.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crti.o /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtbeginS.o -L/Users/wangbin/dev/rpi/sysroot/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib --build-id --as-needed --gc-sections --enable-new-dtags -z origin "-rpath=\$ORIGIN" "-rpath=\$ORIGIN/lib" -rpath-link /Users/wangbin/dev/multimedia/mdk/external/lib/rpi/armv6 test/CMakeFiles/audiodec.dir/audiodec.cpp.o libmdk.so.0.1.0 -lc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtendS.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crtn.o
 
 if(EXISTS /dev/vchiq)
@@ -70,12 +70,14 @@ set(RPI_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info")
 set(RPI_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 if(USE_LIBCXX)
-  if(CMAKE_CROSSCOMPILING)
+  if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
   # headers in clang builtin include dir(stddef.h etc.). -nobuiltininc makes cross build harder if a header is not found in sysroot(include_next stddef.h in /usr/include/linux/)
-    # clang always search libc++ in host toolchain, may mismatch with target libc++ version, and results in conflict(include_next)
+    # -nostdinc++: clang always search libc++(-stdlib=libc++) in host toolchain, may mismatch with target libc++ version, and results in conflict(include_next)
     if(CMAKE_VERSION VERSION_LESS 3.3)
       set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -nostdinc++ -iwithsysroot /usr/include/c++/v1")
     else()
+      #add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>")
+      add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-nostdinc++;-iwithsysroot;/usr/include/c++/v1>")
       add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-nostdinc++;-iwithsysroot;/usr/include/c++/v1>")
     endif()
     # -stdlib=libc++ is not required if -nostdinc++ is set(otherwise warnings)
@@ -87,14 +89,7 @@ if(USE_LIBCXX)
 # link to libc++abi?
   link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl)
   #link_libraries(-lsupc++)
-else()
-  if(CMAKE_CROSSCOMPILING) # FIXME: math.h declaration conflicts with target of using declaration already in scope. try g++4.9
-    if(CMAKE_VERSION VERSION_LESS 3.3)
-      set(RPI_FLAGS_CXX "${RPI_FLAGS_CXX} -iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7 -iwithsysroot /usr/include/c++/7")
-    else()
-      add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-iwithsysroot /usr/include/arm-linux-gnueabihf/c++/7;-iwithsysroot /usr/include/c++/7>")
-    endif()
-  endif()
+else() # gcc files can be found by clang
 endif()
 
 macro(rpi_cc_clang lang)
@@ -109,7 +104,7 @@ endmacro()
 if(CLANG_AS_LINKER)
   link_libraries(-Wl,--build-id -fuse-ld=lld) # -s: strip
 else()
-  set(CMAKE_LINKER lld)
+  #set(CMAKE_LINER      "lld" CACHE INTERNAL "linker" FORCE)
   set(RPI_LD_FLAGS "${RPI_LD_FLAGS} --build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
   rpi_cc_clang(C)
   rpi_cc_clang(CXX)
@@ -117,7 +112,6 @@ endif()
 #53472, 5702912
 # Set or retrieve the cached flags. Without these compiler probing may fail!
 
-set(CMAKE_LINER      "lld")
 set(CMAKE_AR         "${CMAKE_LLVM_AR}" CACHE INTERNAL "rpi ar" FORCE)
 set(CMAKE_C_FLAGS    "${RPI_FLAGS}" CACHE INTERNAL "rpi c compiler flags" FORCE)
 set(CMAKE_CXX_FLAGS  "${RPI_FLAGS} ${RPI_FLAGS_CXX}"  CACHE INTERNAL "rpi c++ compiler/linker flags" FORCE)
