@@ -93,7 +93,7 @@ if(NOT ARCH)
       # assume CMAKE_SYSTEM_PROCESSOR is set correctly(e.g. in toolchain file). can be equals to CMAKE_HOST_SYSTEM_PROCESSOR, e.g. ios simulator
       set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
     else()
-      if(CMAKE_SYSTEM_PROCESSOR MATCHES x86)
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES x86 OR CMAKE_SYSTEM_PROCESSOR MATCHES AMD64)
         if(CMAKE_SIZEOF_VOID_P EQUAL 8)
           set(ARCH x64)
         else()
@@ -105,9 +105,6 @@ if(NOT ARCH)
       endif()
     endif()
   endif()
-endif()
-if(ARCH MATCHES AMD64)
-  set(ARCH x64)
 endif()
 
 if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore 
