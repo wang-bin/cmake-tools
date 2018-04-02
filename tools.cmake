@@ -119,6 +119,7 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
     else()
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
     endif()
+    #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
   endif()
@@ -583,9 +584,8 @@ function(setup_dso_reloc tgt)
   mkdsym(${tgt})  # MUST after VERSION set because VERSION is used un mkdsym for cmake <3.0
 endfunction()
 
-# setup_deploy: deploy sdk libs(and headers for apple) and runtime binaries
+# setup_deploy: deploy libs, public headers(PUBLIC_HEADER as target property and target sources) and runtime binaries of tgt
 function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
-  set(headers ${ARGN})
   if(APPLE AND NOT IOS)
     # macOS only
     if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
@@ -593,28 +593,33 @@ function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
         COMMAND install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${tgt}>
       )
     endif()
+    #[=[
+    # the following code is used to copy PUBLIC_HEADER(target property) manually if PUBLIC_HEADER is not part of target_sources
     get_target_property(IS_FWK ${tgt} FRAMEWORK)
     if(IS_FWK)
-      add_custom_command(TARGET ${tgt} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${headers} $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
-        # WORKING_DIRECTORY does not support generator expr
-    )
+# PUBLIC_HEADER property seems not work for apple framework, so manually copy them
+      get_target_property(PUBLIC_HEADER ${tgt} PUBLIC_HEADER)
+      message("${tgt} PUBLIC_HEADER: ${PUBLIC_HEADER}")
+      if(PUBLIC_HEADER)
+        add_custom_command(TARGET ${tgt} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PUBLIC_HEADER} $<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Headers
+          # WORKING_DIRECTORY does not support generator expr
+        )
+      endif()
     endif()
+    #]=]
   endif()
 
-  install(FILES ${headers}
-    DESTINATION include/${tgt}
-  )
   install(TARGETS ${tgt}
     EXPORT ${tgt}-targets
-    #PUBLIC_HEADER DESTINATION ${tgt}
-    #PRIVATE_HEADER DESTINATION ${tgt}/private
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     FRAMEWORK DESTINATION lib
-  )
+    PUBLIC_HEADER DESTINATION include # install target property PUBLIC_HEADER
+    #PRIVATE_HEADER DESTINATION /private
+    )
   install(EXPORT ${tgt}-targets
     DESTINATION lib/cmake/${tgt}
     FILE ${tgt}-config.cmake
@@ -636,7 +641,7 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.1)
   return()
 endif()
 function(target_sources tgt)
-  if(POLICY CMP0051) # for TARGET_OBJECTS in SOURCES property
+  if(POLICY CMP0051) # for TARGET_OBJECTS in SOURCES property. FIXME: not supported by old cmake
     cmake_policy(SET CMP0051 NEW)
   endif()
   set(options PUBLIC PRIVATE INTERFACE)
