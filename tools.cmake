@@ -415,9 +415,9 @@ endif()
 
 
 if(SANITIZE)
-  add_compile_options(-fno-omit-frame-pointer -fsanitize=address)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  add_compile_options(-fno-omit-frame-pointer -fsanitize=address,undefined)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
 endif()
 #include_directories($ENV{UNIVERSALCRTSDKDIR}/Include/$ENV{WINDOWSSDKVERSION}/ucrt)
 # starts with "-": treated as a link flag. VC: starts with "/" and treated as a path
@@ -561,12 +561,13 @@ function(set_rpath)
     list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
-    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib") #. /usr/local/lib:$ORIGIN
+    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
   endif()
   foreach(p ${RPATH_DIRS})
     set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
   endforeach()
+  #set(CMAKE_INSTALL_RPATH "${RPATH_DIRS}")
   #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
   #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
   if(IOS AND NOT IOS_EMBEDDED_FRAMEWORK)
