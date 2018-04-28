@@ -618,7 +618,7 @@ function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     FRAMEWORK DESTINATION lib
-    PUBLIC_HEADER DESTINATION include # install target property PUBLIC_HEADER
+    PUBLIC_HEADER DESTINATION include/${PROJECT_NAME} # install target property PUBLIC_HEADER
     #PRIVATE_HEADER DESTINATION /private
     )
   install(EXPORT ${tgt}-targets
