@@ -115,7 +115,7 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     # SEH?
     if(WINDOWS_PHONE)
-      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603
+      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT?
     else()
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
     endif()
@@ -368,7 +368,7 @@ endif()
 # If parallel lto is not supported, fallback to single job lto
 # TODO: lld linker (e.g. for COFF /opt:lldltojobs=N)
 if(USE_LTO)
-  if(MSVC)
+  if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC) # -GL is ignored by clang-cl
     set(LTO_CFLAGS "-GL")
     set(LTO_LFLAGS "-LTCG -IGNORE:4075")
   else()
@@ -401,7 +401,9 @@ if(USE_LTO)
       endif()
       if(HAVE_LTO) # android clang fails to use lto because of LLVMgold plugin is not found
         set(LTO_CFLAGS ${LTO_FLAGS})
-        set(LTO_LFLAGS ${LTO_FLAGS})
+        if(NOT MSVC) # clang-cl linker(lld-link) ignores -flto, lto is builtin feature
+          set(LTO_LFLAGS ${LTO_FLAGS})
+        endif()
       endif()
     endif()
   endif()
@@ -433,7 +435,7 @@ if(NOT CMAKE_OBJCOPY)
     # ${CMAKE_C_COMPILER} -print-prog-name=objcopy does not always work. WHEN?
     if(CMAKE_HOST_WIN32)
       string(REGEX REPLACE "gcc.exe$|cc.exe$" "objcopy.exe" CMAKE_OBJCOPY ${CMAKE_C_COMPILER})
-    else()
+    elseif(NOT APPLE)
       string(REGEX REPLACE "gcc$|cc$" "objcopy" CMAKE_OBJCOPY ${CMAKE_C_COMPILER})
     endif()
     # or 1st replace ${CMAKE_C_COMPILER}, 2nd replace ${CMAKE_OBJCOPY}
