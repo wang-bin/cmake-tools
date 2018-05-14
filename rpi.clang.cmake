@@ -7,6 +7,10 @@
 #
 # clang + lld to cross build apps for raspberry pi. can be easily change to other target platforms
 #
+# Options:
+# - RPI_SYSROOT or env var RPI_SYSROOT
+# - USE_LIBCXX
+
 # FIXME: g++8 libm lgammaf32_r@GLIBC_2.27 is missing on stretch(libavcodec/libavformat)
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
