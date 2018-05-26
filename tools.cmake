@@ -251,6 +251,10 @@ function(enable_ldflags_if var flags)
   endif()
 endfunction()
 
+enable_ldflags_if(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
+if(WL_NO_SHLIB_UNDEFINED)
+  link_libraries(${WL_NO_SHLIB_UNDEFINED})
+endif()
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
@@ -384,7 +388,7 @@ if(USE_LTO)
     else()
       if(USE_LTO GREATER 0)
         set(CPUS ${USE_LTO})
-      else()
+      else() #TODO: -flto=thin
         cmake_host_system_information(RESULT CPUS QUERY NUMBER_OF_LOGICAL_CORES) #ProcessorCount
       endif()
       if(CPUS GREATER 1)
