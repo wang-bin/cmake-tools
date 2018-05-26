@@ -29,7 +29,7 @@ endif()
 set(TOOLS_CMAKE_INCLUDED 1)
 
 option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
-option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. TRUE: max parallelism" 0)
+option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. thin: thin LTO. TRUE: max parallelism" 0)
 option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU 
@@ -371,9 +371,7 @@ if(STATIC_LIBGCC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
 endif()
 
-# FIXME: clang 3.5 (rpi) lto link error (ir object not recognized). osx clang3.9 link error
 # If parallel lto is not supported, fallback to single job lto
-# TODO: lld linker (e.g. for COFF /opt:lldltojobs=N)
 if(USE_LTO)
   if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC) # -GL is ignored by clang-cl
     set(LTO_CFLAGS "-GL")
@@ -388,7 +386,14 @@ if(USE_LTO)
     else()
       if(USE_LTO GREATER 0)
         set(CPUS ${USE_LTO})
-      else() #TODO: -flto=thin
+      elseif(USE_LTO STREQUAL thin)
+        set(LTO_FLAGS "-flto=thin")
+        set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+        set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
+        check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_THIN)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+        set(HAVE_LTO ${HAVE_LTO_THIN})
+      else()
         cmake_host_system_information(RESULT CPUS QUERY NUMBER_OF_LOGICAL_CORES) #ProcessorCount
       endif()
       if(CPUS GREATER 1)
@@ -399,7 +404,7 @@ if(USE_LTO)
         set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
         set(HAVE_LTO ${HAVE_LTO_${CPUS}})
       endif()
-      if(NOT HAVE_LTO_${CPUS}) # android clang, icc etc.
+      if(NOT HAVE_LTO) # android clang, icc etc.
         set(LTO_FLAGS "-flto")
         set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
