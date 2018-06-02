@@ -44,6 +44,9 @@ if(NOT RPI_SYSROOT)
   set(RPI_SYSROOT $ENV{RPI_SYSROOT})
 endif()
 set(CMAKE_SYSROOT ${RPI_SYSROOT})
+if(CMAKE_CROSSCOMPILING)
+  set(ENV{PKG_CONFIG_PATH} ${CMAKE_SYSROOT}/usr/lib/arm-linux-gnueabihf/pkgconfig)
+endif()
 
 # llvm-ranlib is for bitcode. but seems works for others. "llvm-ar -s" should be better
 # macOS system ranlib does not work
