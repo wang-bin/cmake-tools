@@ -14,6 +14,7 @@ option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is 
 option(USE_TARGET_LIBCXX "libc++ headers bundled with clang are searched and used by default. usually safe if abi is stable. set to true to use target libc++ if version is different" OFF)
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
 option(LINUX_FLAGS "flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ..." "")
+option(USE_STDCXX "libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler" 0)
 
 set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be used, e.g. apple clang flags are added on macOS
 # "/usr/local/opt/llvm/bin/ld.lld" --sysroot=/Users/wangbin/dev/rpi/sysroot -pie -X --eh-frame-hdr -m armelf_linux_eabi -dynamic-linker /lib/ld-linux-armhf.so.3 -o test/audiodec /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/Scrt1.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crti.o /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtbeginS.o -L/Users/wangbin/dev/rpi/sysroot/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib --build-id --as-needed --gc-sections --enable-new-dtags -z origin "-rpath=\$ORIGIN" "-rpath=\$ORIGIN/lib" -rpath-link /Users/wangbin/dev/multimedia/mdk/external/lib/rpi/armv6 test/CMakeFiles/audiodec.dir/audiodec.cpp.o libmdk.so.0.1.0 -lc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtendS.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crtn.o
@@ -137,6 +138,15 @@ if(USE_LIBCXX)
   #  link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl) # libc++ abi is not libc++abi, e.g. stdc++/supc++ abi. clang generated __cxa_thread_atexit is defined in libc++abi 4.0+
   #endif()
 else() # gcc files can be found by clang
+  if(NOT USE_STDCXX VERSION_LESS 4.8)
+  # Selected GCC installation: always the last (greatest version), no way to change it
+    add_compile_options(-nostdinc++)
+    file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++")
+    list(FILTER CXX_DIRS INCLUDE REGEX "/c\\+\\+$")
+    foreach(dir IN ITEMS ${CXX_DIRS})
+      add_compile_options("-cxx-isystem ${dir}/${USE_STDCXX}")      
+    endforeach()
+  endif()
 endif()
 
 if(CLANG_AS_LINKER)
