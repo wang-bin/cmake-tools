@@ -31,7 +31,5 @@ else()
 endif()
 
 # set options in linux.clang.cmake
-set(USE_STD_TLS OFF)
 set(USE_LIBCXX ON)
-set(USE_LIBCXXABI ON)
 include(${CMAKE_CURRENT_LIST_DIR}/linux.clang.cmake)

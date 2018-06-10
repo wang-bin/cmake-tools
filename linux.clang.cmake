@@ -10,7 +10,7 @@
 
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
-option(USE_LIBCXXABI "use libc++abi. required by some platforms" OFF)
+option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is built with none abi" "")
 option(USE_TARGET_LIBCXX "libc++ headers bundled with clang are searched and used by default. usually safe if abi is stable. set to true to use target libc++ if version is different" OFF)
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
 option(LINUX_FLAGS "flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ..." "")
@@ -88,8 +88,8 @@ if(USE_LIBCXX)
   else()
     set(LINUX_FLAGS_CXX "${LINUX_FLAGS_CXX} -stdlib=libc++") # for both compiler & linker
   endif()
-  if(USE_LIBCXXABI)
-    link_libraries(-lc++abi)
+  if(USE_CXXABI)
+    link_libraries(-l${USE_CXXABI}) # required if libc++ is built with none abi. otherwise libc++.so is a ld script contains an abi library, e.g. -lc++abi/-lstdc++/-lsupc++
   endif()
   #check_library_exists:  compiler must be detected
   # old libc + old libc++abi: DO NOT use thread_local
