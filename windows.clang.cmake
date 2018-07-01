@@ -27,10 +27,25 @@ option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
 option(ONECORE "build with oncore" OFF)
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}) # ${CMAKE_SYSTEM_NAME}-Clang-C.cmake is missing
 set(CMAKE_CROSSCOMPILING ON) # turned on by setting CMAKE_SYSTEM_NAME?
 # FIXME: msvcrtd.lib is required
-set(CMAKE_SYSTEM_NAME Windows) # phone, store?
-#set(CMAKE_SYSTEM_VERSION 10.0)
+if(NOT CMAKE_SYSTEM_NAME)
+  if(UWP)
+    set(CMAKE_SYSTEM_NAME WindowsStore)
+  elseif(PHONE)
+    set(CMAKE_SYSTEM_NAME WindowsPhone)
+  else()
+    set(CMAKE_SYSTEM_NAME Windows)
+  endif()
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone)
+  add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP -D_WIN32_WINNT=0x0603) ## cmake3.10 does not define _WIN32_WINNT?
+  set(CMAKE_SYSTEM_VERSION 8.1)
+elseif(CMAKE_SYSTEM_NAME STREQUAL WindowsStore)
+  add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_WIN32_WINNT=0x0A00)
+  set(CMAKE_SYSTEM_VERSION 10.0)
+endif()
 
 if(NOT CMAKE_C_COMPILER)
   set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
@@ -69,6 +84,7 @@ if(NOT MSVC_DIR)
 endif()
 # Export configurable variables for the try_compile() command. Or set env var like llvm
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+  CMAKE_SYSTEM_NAME
   CMAKE_SYSTEM_PROCESSOR
   MSVC_DIR
   WINSDK_DIR
@@ -79,6 +95,18 @@ set(MSVC_INCLUDE "${MSVC_DIR}/include")
 set(MSVC_LIB "${MSVC_DIR}/lib")
 set(WINSDK_INCLUDE "${WINSDK_DIR}/Include/${WINSDK_VER}")
 set(WINSDK_LIB "${WINSDK_DIR}/Lib/${WINSDK_VER}")
+if(ONECORE)
+  set(ONECORE_DIR onecore)
+  if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+    set(ONECORE_LIB OneCore.Lib)
+  else()
+    set(ONECORE_LIB OneCoreUAP.Lib)
+  endif()
+else()
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows)
+    set(STORE_DIR store)
+  endif()
+endif()
 
 if(NOT EXISTS "${WINSDK_INCLUDE}/um/Windows.h")
   message(SEND_ERROR "Cannot find Windows.h")
@@ -109,9 +137,23 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
   list(APPEND LINK_FLAGS
     # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
     /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
-    -libpath:"${MSVC_LIB}/${WINSDK_ARCH}"
+    -opt:ref
+    -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
-    -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}")
+    -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
+    ${ONECORE_LIB}
+    )
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+else()
+  list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE -EHsc)
+  list(APPEND LINK_FLAGS -appcontainer)
+  if(CMAKE_SYSTEM_NAME STREQUAL WindowsStore) # checked by MSVC_VERSION
+    list(APPEND LINK_FLAGS WindowsApp.lib) # win10 only
+  elseif(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone)
+    list(APPEND LINK_FLAGS WindowsPhoneCore.lib RuntimeObject.lib PhoneAppModelHost.lib) # win10 only
+  endif()
 endif()
 
 string(REPLACE ";" " " COMPILE_FLAGS "${COMPILE_FLAGS}")
@@ -129,8 +171,8 @@ set(CMAKE_SHARED_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_C_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 
-set(CMAKE_RC_COMPILER_INIT llvm-rc CACHE INTERNAL "windows llvm rc" FORCE)
-set(CMAKE_RC_COMPLIER llvm-rc CACHE INTERNAL "windows llvm rc" FORCE)
-set(CMAKE_GENERATOR_RC llvm-rc CACHE INTERNAL "windows llvm rc" FORCE)
+set(CMAKE_RC_COMPILER_INIT llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+set(CMAKE_RC_COMPLIER llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+set(CMAKE_GENERATOR_RC llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 # Allow clang-cl to work with macOS paths.
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/override.windows.clang.cmake")
