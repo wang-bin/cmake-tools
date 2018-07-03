@@ -24,6 +24,7 @@ endif()
 
 # flags for both compiler and linker
 set(LINUX_FLAGS "--target=arm-rpi-linux-gnueabihf -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -marm")
+add_definitions(-DOS_RPI)
 
 if(EXISTS /dev/vchiq)
   set(CMAKE_CROSSCOMPILING OFF)

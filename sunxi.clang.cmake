@@ -23,6 +23,7 @@ endif()
 # flags for both compiler and linker
 # https://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi
 set(LINUX_FLAGS "--target=arm-sunxi-linux-gnueabihf -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mthumb") #-mfpu=vfpv3-d16
+add_definitions(-DOS_SUNXI)
 
 if(EXISTS /dev/cedar_dev)
   set(CMAKE_CROSSCOMPILING OFF)
