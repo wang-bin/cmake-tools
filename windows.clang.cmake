@@ -22,7 +22,7 @@
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl" ON)
-option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
+option(USE_LIBCXX "use libc++ instead of libstdc++. set to libc++ path including include and lib dirs to enable" OFF)
 option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
 option(ONECORE "build with oncore" OFF)
@@ -45,6 +45,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone)
 elseif(CMAKE_SYSTEM_NAME STREQUAL WindowsStore)
   add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_WIN32_WINNT=0x0A00)
   set(CMAKE_SYSTEM_VERSION 10.0)
+else()
+    #CMAKE_SYSTEM_VERSION=x.y =>0x0x0y
 endif()
 
 if(NOT CMAKE_C_COMPILER)
@@ -111,7 +113,15 @@ endif()
 if(NOT EXISTS "${WINSDK_INCLUDE}/um/Windows.h")
   message(SEND_ERROR "Cannot find Windows.h")
 endif()
+if(USE_LIBCXX AND NOT EXISTS ${USE_LIBCXX}/include/c++/v1/__config)
+  message(SEND_ERROR "USE_LIBCXX MUST be a valid dir contains libc++ include and lib")
+endif()
 
+if(USE_LIBCXX)
+  add_definitions(-D__WRL_ASSERT__=assert) # avoid including vcruntime_new.h to fix conflicts(assume libc++ is built with LIBCXX_NO_VCRUNTIME)
+  set(CXX_FLAGS "${CXX_FLAGS} -I${USE_LIBCXX}/include/c++/v1")
+  list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
+endif()
 set(COMPILE_FLAGS
     -D_CRT_SECURE_NO_WARNINGS
     --target=${TRIPLE_ARCH}-windows-msvc
@@ -158,7 +168,7 @@ endif()
 
 string(REPLACE ";" " " COMPILE_FLAGS "${COMPILE_FLAGS}")
 set(CMAKE_C_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
