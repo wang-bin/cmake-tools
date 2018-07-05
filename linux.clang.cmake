@@ -12,6 +12,7 @@ option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
 option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is built with none abi" "")
 option(USE_TARGET_LIBCXX "libc++ headers bundled with clang are searched and used by default. usually safe if abi is stable. set to true to use target libc++ if version is different" OFF)
+option(USE_COMPILER_RT "use compiler-rt instead of libgcc as compiler runtime library" OFF)
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
 option(LINUX_FLAGS "flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ..." "")
 option(USE_STDCXX "libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler" 0)
@@ -151,6 +152,9 @@ endif()
 
 if(CLANG_AS_LINKER)
   link_libraries(-Wl,--build-id -fuse-ld=lld) # -s: strip
+  if(USE_COMPILER_RT)
+    link_libraries(-rtlib=compiler-rt)
+  endif()
 else()
   #set(CMAKE_LINER      "lld" CACHE INTERNAL "linker" FORCE)
   set(LINUX_LD_FLAGS "${LINUX_LD_FLAGS} --build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
