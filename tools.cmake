@@ -125,7 +125,7 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   endif()
 endif()
 
-if(WINDOWS_XP AND MSVC AND NOT WINSTORE AND NOT WINDOWS_PHONE AND NOT WINCE)
+if(WINDOWS_XP AND MSVC AND NOT WINDOWS_STORE AND NOT WINDOWS_PHONE AND NOT WINCE)
   if(CMAKE_CL_64)
     add_definitions(-D_WIN32_WINNT=0x0502)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.02")
@@ -352,6 +352,8 @@ if(NO_RTTI)
   if(MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
       string(REPLACE "/GR" "-GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    else() # clang-cl
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -GR-")
     endif()
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
