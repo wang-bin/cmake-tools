@@ -27,6 +27,16 @@ option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
 option(ONECORE "build with oncore" OFF)
 
+# Export configurable variables for the try_compile() command. Or set env var like llvm
+set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+  CMAKE_C_COMPILER # avoid find_program multiple times
+  CMAKE_SYSTEM_NAME
+  CMAKE_SYSTEM_PROCESSOR
+  MSVC_DIR
+  WINSDK_DIR
+  WINSDK_VER
+)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}) # ${CMAKE_SYSTEM_NAME}-Clang-C.cmake is missing
 set(CMAKE_CROSSCOMPILING ON) # turned on by setting CMAKE_SYSTEM_NAME?
 # FIXME: msvcrtd.lib is required
@@ -68,12 +78,24 @@ else()
   endif()
 endif()
 
-if(NOT CMAKE_C_COMPILER)
-  set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
-  set(CMAKE_CXX_COMPILER clang-cl CACHE FILEPATH "")
-  set(CMAKE_LINKER lld-link CACHE FILEPATH "")
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
+if(NOT CMAKE_C_COMPILER)
+  find_program(CMAKE_C_COMPILER clang-cl-8 clang-cl-8.0 clang-cl-7.0 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
+    HINTS /usr/local/opt/llvm/bin
+    CMAKE_FIND_ROOT_PATH_BOTH
+  )
+  message("CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
+  if(CMAKE_C_COMPILER)
+    string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)$" "lld-link\\1" LLD_LINK "${CMAKE_C_COMPILER}")
+    set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
+    message("CMAKE_LINKER:${CMAKE_LINKER}")
+  else()
+    set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
+    set(CMAKE_LINKER lld-link CACHE FILEPATH "")
+  endif()
+  set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER} CACHE FILEPATH "")
 endif()
+
 
 if(NOT CMAKE_SYSTEM_PROCESSOR)
   message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
@@ -103,14 +125,6 @@ endif()
 if(NOT MSVC_DIR)
   set(MSVC_DIR $ENV{VCDIR})
 endif()
-# Export configurable variables for the try_compile() command. Or set env var like llvm
-set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
-  CMAKE_SYSTEM_NAME
-  CMAKE_SYSTEM_PROCESSOR
-  MSVC_DIR
-  WINSDK_DIR
-  WINSDK_VER
-)
 
 set(MSVC_INCLUDE "${MSVC_DIR}/include")
 set(MSVC_LIB "${MSVC_DIR}/lib")
@@ -141,7 +155,7 @@ if(USE_LIBCXX)
   set(CXX_FLAGS "${CXX_FLAGS} -I${USE_LIBCXX}/include/c++/v1")
   list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
 endif()
-set(COMPILE_FLAGS
+set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     -D_CRT_SECURE_NO_WARNINGS
     --target=${TRIPLE_ARCH}-windows-msvc
     -fms-compatibility-version=19.14)

@@ -15,9 +15,12 @@
 set(CMAKE_SYSTEM_PROCESSOR armv7)
 set(SUNXI 1)
 set(OS sunxi)
-set(LINUX_SYSROOT "${SUNXI_SYSROOT}")
+
 if(NOT LINUX_SYSROOT OR NOT EXISTS "${LINUX_SYSROOT}")
-  set(LINUX_SYSROOT "$ENV{SUNXI_SYSROOT}")
+  set(LINUX_SYSROOT "${SUNXI_SYSROOT}")
+  if(NOT LINUX_SYSROOT OR NOT EXISTS "${LINUX_SYSROOT}")
+    set(LINUX_SYSROOT "$ENV{SUNXI_SYSROOT}")
+  endif()
 endif()
 
 # flags for both compiler and linker

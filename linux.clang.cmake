@@ -23,14 +23,23 @@ set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be 
 # Export configurable variables for the try_compile() command. Or set env var like llvm
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   CMAKE_SYSTEM_PROCESSOR
+  CMAKE_C_COMPILER # find_program only once
 )
 
-if(CMAKE_CROSSCOMPILING)
-  set(CMAKE_C_COMPILER clang-6.0)
-  set(CMAKE_CXX_COMPILER clang++-6.0)
-else()
-  set(CMAKE_C_COMPILER clang)
-  set(CMAKE_CXX_COMPILER clang++)
+if(NOT CMAKE_C_COMPILER)
+  find_program(CMAKE_C_COMPILER clang-8 clang-8.0 clang-7.0 clang-6.0 clang-5.0 clang-4.0 clang
+    HINTS /usr/local/opt/llvm/bin
+    CMAKE_FIND_ROOT_PATH_BOTH
+  )
+  if(CMAKE_C_COMPILER)
+    string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++\\1" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
+    if(NOT EXISTS "${CMAKE_CXX_COMPILER}") # homebrew, clang-6.0 but clang++ has no suffix
+      string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
+    endif()
+  else()
+    set(CMAKE_C_COMPILER clang)
+    set(CMAKE_CXX_COMPILER clang++)
+  endif()
 endif()
 
 # llvm-ranlib is for bitcode. but seems works for others. "llvm-ar -s" should be better
@@ -49,6 +58,11 @@ execute_process(
 execute_process(
   COMMAND ${CMAKE_C_COMPILER} -print-prog-name=llvm-readelf
   OUTPUT_VARIABLE READELF
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+execute_process(
+  COMMAND ${CMAKE_C_COMPILER} -print-prog-name=llvm-objcopy
+  OUTPUT_VARIABLE CMAKE_LLVM_OBJCOPY
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
@@ -173,6 +187,7 @@ endif()
 # Set or retrieve the cached flags. Without these compiler probing may fail!
 
 set(CMAKE_AR         "${CMAKE_LLVM_AR}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} ar" FORCE)
+#set(CMAKE_OBJCOPY    "${CMAKE_LLVM_OBJCOPY}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} objcopy" FORCE)
 set(CMAKE_C_FLAGS    "${LINUX_FLAGS}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c compiler flags" FORCE)
 set(CMAKE_CXX_FLAGS  "${LINUX_FLAGS} ${LINUX_FLAGS_CXX}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c++ compiler/linker flags" FORCE)
 set(CMAKE_ASM_FLAGS  "${LINUX_FLAGS}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} asm compiler flags" FORCE)

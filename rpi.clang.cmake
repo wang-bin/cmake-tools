@@ -17,9 +17,12 @@
 set(CMAKE_SYSTEM_PROCESSOR armv6)
 set(RPI 1)
 set(OS rpi)
-set(LINUX_SYSROOT "${RPI_SYSROOT}")
+
 if(NOT LINUX_SYSROOT OR NOT EXISTS "${LINUX_SYSROOT}")
-  set(LINUX_SYSROOT "$ENV{RPI_SYSROOT}")
+  set(LINUX_SYSROOT "${RPI_SYSROOT}")
+  if(NOT LINUX_SYSROOT OR NOT EXISTS "${LINUX_SYSROOT}")
+    set(LINUX_SYSROOT "$ENV{RPI_SYSROOT}")
+  endif()
 endif()
 
 # flags for both compiler and linker
