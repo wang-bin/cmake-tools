@@ -13,9 +13,12 @@
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
+# clang/gcc: -fms-extensions
+# enable/add_c_flags_if()
 
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
+# TODO: vc 1913+  "-Zc:__cplusplus -std:c++14" to correct __cplusplus. see qt msvc-version.conf. https://blogs.msdn.microsoft.com/vcblog/2018/04/09/msvc-now-correctly-reports-__cplusplus/
 if(POLICY CMP0022) # since 2.8.12. link_libraries()
   cmake_policy(SET CMP0022 NEW)
 endif()
@@ -213,7 +216,10 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
     endif()
     set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security ${CFLAGS_STACK_PROTECTOR})
     set(ELF_HARDENED_LFLAGS "-Wl,-z,relro -Wl,-z,now")
-    set(ELF_HARDENED_EFLAGS "-fPIE -pie")
+    set(ELF_HARDENED_EFLAGS "-fPIE")
+    if(NOT SUNXI) # FIXME: why egl from x11 fails? MESA_EGL_NO_X11_HEADERS causes wrong EGLNativeWindowType? Scrt1.o is used if -pie
+      #set(ELF_HARDENED_EFLAGS "${ELF_HARDENED_EFLAGS} -pie")
+    endif()
     if(ANDROID)
       if(ANDROID_NDK_TOOLCHAIN_INCLUDED) # already defined by ndk: ANDROID_DISABLE_RELRO, ANDROID_DISABLE_FORMAT_STRING_CHECKS, ANDROID_PIE
         set(ELF_HARDENED_CFLAGS "")
@@ -303,6 +309,7 @@ if(ANDROID)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
   endif()
+  # TODO: compiler-rt
   if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
     # g++ has no -stdlib option. clang default stdlib is -lstdc++. we change it to libc++ to avoid linking against libstdc++
     # -stdlib=libc++ will find libc++.so, while android ndk has no such file. libc++.a is a linker script. Seems can be used for shared libc++
@@ -320,6 +327,7 @@ if(ANDROID)
   if(CMAKE_SHARED_LINKER_FLAGS MATCHES "-nodefaultlibs" OR ANDROID_STL MATCHES "_static") # g++ or static libc++ -nodefaultlibs/-nostdlib. libgcc defines __emutls_get_address (and more), x86 may require libdl
     link_libraries(-lgcc -ldl) # requires cmake_policy(SET CMP0022 NEW)
   endif()
+  # -static-libstdc++: USE_NOSTDLIBXX(-nostdlib++) is added in r17 and "-static-libstdc++ -stdlib=libc++" does not work
 # libsupc++.a seems useless (not found in cmake & qt), but it's added by ndk for gnustl_shared even without exception enabled.
   string(REPLACE "\"${ANDROID_STL_LIB_DIR}/libsupc++.a\"" "" CMAKE_CXX_STANDARD_LIBRARIES_INIT "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
   if(CMAKE_CXX_STANDARD_LIBRARIES_INIT) # cmake does not add supc++, check supc++ to avoid setting CMAKE_CXX_STANDARD_LIBRARIES to empty(no stl)
@@ -468,12 +476,17 @@ function(mkdsym tgt)
   # TODO: find objcopy in target tools (e.g. clang toolchain)
   # TODO: apple support
   if(CMAKE_OBJCOPY)
-    add_custom_command(TARGET ${tgt} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.orig
-      COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
-      COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all $<TARGET_FILE:${tgt}>
-      COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
-      )
+    if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
+      #add_custom_command(TARGET ${tgt} POST_BUILD
+      #  COMMAND ${CMAKE_OBJCOPY} -only-keep=debug* $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
+      #  COMMAND ${CMAKE_OBJCOPY} -strip-debug -add-section=.gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
+      #  )
+    else()
+      add_custom_command(TARGET ${tgt} POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
+        COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
+        )
+    endif()
     if(CMAKE_VERSION VERSION_LESS 3.0)
       get_property(tgt_path TARGET ${tgt} PROPERTY LOCATION) #cmake > 2.8.12: CMP0026
       # can not use wildcard "${tgt_path}*.dsym"
@@ -574,7 +587,7 @@ function(set_rpath)
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
-    list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
+    list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib @loader_path/../lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib") #. /usr/local/lib:$ORIGIN
