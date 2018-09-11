@@ -115,10 +115,13 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   set(WINSTORE 1)
   set(WIN32 1) ## defined in cmake?
   set(OS WinRT)
+  if(ARCH STREQUAL ARMV7)
+    set(ARCH arm)
+  endif()
   if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     # SEH?
     if(WINDOWS_PHONE)
-      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT?
+      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set?
     else()
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
     endif()
@@ -257,6 +260,19 @@ function(enable_ldflags_if var flags)
   endif()
 endfunction()
 
+enable_ldflags_if(WL_ICF "-Wl,--icf=safe") # gnu binutils
+if(WL_ICF)
+  link_libraries(${WL_ICF})
+else() # lld only supports --icf=all, but only safe with clang-7.0+ -faddrsig
+  check_c_compiler_flag("-faddrsig" HAVE_FADDRSIG)
+  if(HAVE_FADDRSIG)
+    add_compile_options(-faddrsig)
+    enable_ldflags_if(WL_ICF_ALL "-Wl,--icf=all")
+    if(WL_ICF_ALL)
+      link_libraries(${WL_ICF_ALL})
+    endif()
+  endif()
+endif()
 enable_ldflags_if(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
 if(WL_NO_SHLIB_UNDEFINED)
   link_libraries(${WL_NO_SHLIB_UNDEFINED})
