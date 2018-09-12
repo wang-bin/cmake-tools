@@ -125,16 +125,19 @@ if(USE_LIBCXX)
       #set(USE_STD_TLS OFF)
     else()
       file(GLOB_RECURSE LIBCXXABI_SO "${CMAKE_SYSROOT}/usr/lib/*libc++abi.so.1") #LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
-      execute_process(
-        COMMAND ${READELF} -symbols ${LIBCXXABI_SO}
-        OUTPUT_VARIABLE LIBCXXABI_SYMBOLS
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-      string(REGEX MATCH "WEAK [A-Z ]* __cxa_thread_atexit_impl" WEAK__cxa_thread_atexit_impl "${LIBCXXABI_SYMBOLS}")
-      if(NOT WEAK__cxa_thread_atexit_impl)
-        message("libc++abi in build environment is too old to support thread_local on old libc runtime")
-        #set(USE_STD_TLS OFF)
-      endif()
+      foreach(so IN ITEMS ${LIBCXXABI_SO})
+        execute_process(
+          COMMAND ${READELF} -symbols ${LIBCXXABI_SO}
+          OUTPUT_VARIABLE LIBCXXABI_SYMBOLS
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        string(REGEX MATCH "WEAK [A-Z ]* __cxa_thread_atexit_impl" WEAK__cxa_thread_atexit_impl "${LIBCXXABI_SYMBOLS}")
+        if(NOT WEAK__cxa_thread_atexit_impl)
+          message("libc++abi in build environment is too old to support thread_local on old libc runtime")
+          #set(USE_STD_TLS OFF)
+        endif()
+        break()
+      endforeach()
     endif()
   endif()
   file(GLOB_RECURSE LIBC_SO "${CMAKE_SYSROOT}/lib/*libc.so.6")
