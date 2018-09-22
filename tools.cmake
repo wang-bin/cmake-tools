@@ -121,13 +121,13 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     # SEH?
     if(WINDOWS_PHONE)
-      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set?
+      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
     else()
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
     endif()
     #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
   endif()
 endif()
 
@@ -210,36 +210,9 @@ if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
 
-if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
-  if(ELF_HARDENED)
-    set(CFLAGS_STACK_PROTECTOR -fstack-protector-strong) # -fstack-protector-strong(since gcc4.9) is default for debian
-    check_c_compiler_flag(${CFLAGS_STACK_PROTECTOR} HAVE_STACK_PROTECTOR_STRONG)
-    if(NOT HAVE_STACK_PROTECTOR_STRONG)
-      set(CFLAGS_STACK_PROTECTOR -fstack-protector)
-    endif()
-    set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security ${CFLAGS_STACK_PROTECTOR})
-    set(ELF_HARDENED_LFLAGS "-Wl,-z,relro -Wl,-z,now")
-    set(ELF_HARDENED_EFLAGS "-fPIE")
-    if(NOT SUNXI) # FIXME: why egl from x11 fails? MESA_EGL_NO_X11_HEADERS causes wrong EGLNativeWindowType? Scrt1.o is used if -pie
-      #set(ELF_HARDENED_EFLAGS "${ELF_HARDENED_EFLAGS} -pie")
-    endif()
-    if(ANDROID)
-      if(ANDROID_NDK_TOOLCHAIN_INCLUDED) # already defined by ndk: ANDROID_DISABLE_RELRO, ANDROID_DISABLE_FORMAT_STRING_CHECKS, ANDROID_PIE
-        set(ELF_HARDENED_CFLAGS "")
-        set(ELF_HARDENED_LFLAGS "")
-        set(ELF_HARDENED_EFLAGS "")
-      endif()
-    else()
-      list(APPEND ELF_HARDENED_CFLAGS -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2)
-    endif()
-    add_compile_options(${ELF_HARDENED_CFLAGS})
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ELF_HARDENED_EFLAGS}")
-  endif()
-endif()
-
 # TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
-function(enable_ldflags_if var flags)
+# TODO: test_lflags(var, flags), enable_lflags(flags)
+function(test_lflags var flags)
   string(STRIP "${flags}" flags_stripped)
   if("${flags_stripped}" STREQUAL "")
     return()
@@ -260,48 +233,12 @@ function(enable_ldflags_if var flags)
   endif()
 endfunction()
 
-enable_ldflags_if(WL_ICF "-Wl,--icf=safe") # gnu binutils
-if(WL_ICF)
-  link_libraries(${WL_ICF})
-else() # lld only supports --icf=all, but only safe with clang-7.0+ -faddrsig
-  check_c_compiler_flag("-faddrsig" HAVE_FADDRSIG)
-  if(HAVE_FADDRSIG)
-    add_compile_options(-faddrsig)
-    enable_ldflags_if(WL_ICF_ALL "-Wl,--icf=all")
-    if(WL_ICF_ALL)
-      link_libraries(${WL_ICF_ALL})
-    endif()
+function(enable_lflags flags)
+  test_lflags(HAVE_LFLAGS "${flags}")
+  if(HAVE_LFLAGS)
+    link_libraries(${HAVE_LFLAGS})
   endif()
-endif()
-enable_ldflags_if(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
-if(WL_NO_SHLIB_UNDEFINED)
-  link_libraries(${WL_NO_SHLIB_UNDEFINED})
-endif()
-# Dead code elimination
-# https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
-# https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
-check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
-if(HAVE_FUNCTION_SECTIONS)
-  set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
-  if(NOT WIN32) # mingw gcc will increase size
-    list(APPEND DCE_CFLAGS -fdata-sections)
-  endif()
-endif()
-enable_ldflags_if(GC_SECTIONS "-Wl,--gc-sections")
-enable_ldflags_if(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
-if(WIN32)
-  enable_ldflags_if(OPT_REF "-opt:ref") # CMAKE_LINKER is link.exe, lld-link. -opt:icf is turned on
-  #enable_ldflags_if(OPT_REF "-Wl,-opt:ref") # CMAKE_LINKER is lld-link. but cmake only supports clang-cl, so -Wl is not supported
-endif()
-string(STRIP "${AS_NEEDED} ${GC_SECTIONS} ${OPT_REF}" DCE_LFLAGS)
-# TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
-if(DCE_CFLAGS)
-  add_compile_options(${DCE_CFLAGS})
-endif()
-if(DCE_LFLAGS)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${DCE_LFLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${DCE_LFLAGS}")
-endif()
+endfunction()
 
 if(ANDROID)
   if(NOT ANDROID_NDK)
@@ -389,6 +326,81 @@ if(NO_EXCEPTIONS)
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
   endif()
+endif()
+
+
+if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
+  if(ELF_HARDENED)
+    set(CFLAGS_STACK_PROTECTOR -fstack-protector-strong) # -fstack-protector-strong(since gcc4.9) is default for debian
+    check_c_compiler_flag(${CFLAGS_STACK_PROTECTOR} HAVE_STACK_PROTECTOR_STRONG)
+    if(NOT HAVE_STACK_PROTECTOR_STRONG)
+      set(CFLAGS_STACK_PROTECTOR -fstack-protector)
+    endif()
+    set(ELF_HARDENED_CFLAGS -Wformat -Werror=format-security ${CFLAGS_STACK_PROTECTOR})
+    set(ELF_HARDENED_LFLAGS "-Wl,-z,relro -Wl,-z,now")
+    set(ELF_HARDENED_EFLAGS "-fPIE")
+    if(NOT SUNXI) # FIXME: why egl from x11 fails? MESA_EGL_NO_X11_HEADERS causes wrong EGLNativeWindowType? Scrt1.o is used if -pie
+      #set(ELF_HARDENED_EFLAGS "${ELF_HARDENED_EFLAGS} -pie")
+    endif()
+    if(ANDROID)
+      if(ANDROID_NDK_TOOLCHAIN_INCLUDED) # already defined by ndk: ANDROID_DISABLE_RELRO, ANDROID_DISABLE_FORMAT_STRING_CHECKS, ANDROID_PIE
+        set(ELF_HARDENED_CFLAGS "")
+        set(ELF_HARDENED_LFLAGS "")
+        set(ELF_HARDENED_EFLAGS "")
+      endif()
+    else()
+      list(APPEND ELF_HARDENED_CFLAGS -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2)
+    endif()
+    add_compile_options(${ELF_HARDENED_CFLAGS})
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ELF_HARDENED_EFLAGS}")
+  endif()
+
+# ICF, ELF only? ICF is enbled by vc release mode(/opt:ref,icf)
+# FIXME: -fuse-ld=lld is not used. wrong result for android. what about linux desktop? lflags -fuse-ld=lld in linux.clang.cmake works?
+  test_lflags(WL_ICF "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be used with -r
+  if(WL_ICF)
+    link_libraries(${WL_ICF})
+  else() # lld only supports --icf=all, but only safe with clang-7.0+ -faddrsig
+    check_c_compiler_flag("-faddrsig" HAVE_FADDRSIG) # ndk18 clang7.0svn does not support it?
+    if(HAVE_FADDRSIG)
+      # add_compile_options(-faddrsig) # addrsig is turned on by default. building for COFF with -faddrsig results in wrong symbols, e.g. depended __impl_ prefix are removed
+      test_lflags(WL_ICF_ALL "-Wl,--icf=all")
+      if(WL_ICF_ALL)
+        link_libraries(${WL_ICF_ALL})
+      endif()
+    endif()
+  endif()
+endif()
+
+test_lflags(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
+if(WL_NO_SHLIB_UNDEFINED)
+  link_libraries(${WL_NO_SHLIB_UNDEFINED})
+endif()
+# Dead code elimination
+# https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
+# https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
+check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
+if(HAVE_FUNCTION_SECTIONS)
+  set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
+  if(NOT WIN32) # mingw gcc will increase size
+    list(APPEND DCE_CFLAGS -fdata-sections)
+  endif()
+endif()
+test_lflags(GC_SECTIONS "-Wl,--gc-sections") # FIXME: can not be used with -r
+test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
+if(WIN32)
+  # test_lflags(OPT_REF "-opt:ref") # ref is turned on by vc in release mode. CMAKE_LINKER is link.exe, lld-link. -opt:icf is turned on
+  #test_lflags(OPT_REF "-Wl,-opt:ref") # CMAKE_LINKER is lld-link. but cmake only supports clang-cl, so -Wl is not supported
+endif()
+string(STRIP "${AS_NEEDED} ${GC_SECTIONS} ${OPT_REF}" DCE_LFLAGS)
+# TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
+if(DCE_CFLAGS)
+  add_compile_options(${DCE_CFLAGS})
+endif()
+if(DCE_LFLAGS)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${DCE_LFLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${DCE_LFLAGS}")
 endif()
 
 if(STATIC_LIBGCC)
@@ -543,11 +555,12 @@ function(mkres files)
 endfunction()
 
 # TODO: check target is a SHARED library
+# TODO: -r can not mix with -icf -gc-sections
 function(set_relocatable_flags)
   if(MSVC)
   else()
 # can't use with -shared. -dynamic(apple) is fine. -shared is set in CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS, so we may add another library type RELOCATABLE in add_library
-    enable_ldflags_if(RELOBJ "-r -nostdlib")
+    test_lflags(RELOBJ "-r -nostdlib")
   endif()
   if(RELOBJ)
     list(LENGTH ARGN _nb_args)
@@ -574,7 +587,7 @@ endfunction()
 # exporting symbols excluding all depended static libs
 function(exclude_libs_all)
   # TODO: check APPLE is enough because no other linker available on apple? what about llvm lld?
-  enable_ldflags_if(EXCLUDE_ALL "-Wl,--exclude-libs,ALL") # prevent to export external lib apis
+  test_lflags(EXCLUDE_ALL "-Wl,--exclude-libs,ALL") # prevent to export external lib apis
   if(NOT EXCLUDE_ALL)
     return()
   endif()
@@ -597,7 +610,7 @@ function(set_rpath)
     return()
   endif()
   cmake_parse_arguments(RPATH "" "" "DIRS" ${ARGN}) #ARGV?
-  enable_ldflags_if(RPATH_FLAGS "-Wl,--enable-new-dtags")
+  test_lflags(RPATH_FLAGS "-Wl,--enable-new-dtags")
   set(LD_RPATH "-Wl,-rpath,")
 # Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
 # Working dir search: "."
