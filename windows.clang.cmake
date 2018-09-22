@@ -86,7 +86,10 @@ if(NOT CMAKE_C_COMPILER)
   )
   message("CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
   if(CMAKE_C_COMPILER)
-    string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)$" "lld-link\\1" LLD_LINK "${CMAKE_C_COMPILER}")
+    if(CMAKE_HOST_WIN32)
+      set(_EXE .exe)
+    endif()
+    string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "lld-link\\1${_EXE}" LLD_LINK "${CMAKE_C_COMPILER}")
     set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
     message("CMAKE_LINKER:${CMAKE_LINKER}")
   else()
@@ -158,7 +161,12 @@ endif()
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     -D_CRT_SECURE_NO_WARNINGS
     --target=${TRIPLE_ARCH}-windows-msvc
-    -fms-compatibility-version=19.14)
+    #-fms-compatibility-version=19.15
+    )
+list(APPEND LINK_FLAGS
+    #-opt:ref # turned on by default in release mode
+    ${ONECORE_LIB}
+    )
 
 if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools like rc and mt exists
   if(NOT EXISTS "${WINSDK_INCLUDE}/um/WINDOWS.H")
@@ -180,11 +188,9 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
   list(APPEND LINK_FLAGS
     # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
     /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
-    -opt:ref
     -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
     -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
-    ${ONECORE_LIB}
     )
 endif()
 
