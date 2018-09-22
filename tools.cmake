@@ -110,10 +110,12 @@ if(NOT ARCH)
   endif()
 endif()
 
+if(WIN32 AND NOT WINDOWS_PHONE AND NOT WINDOWS_STORE)
+  set(WINDOWS_DESKTOP 1)
+endif()
 if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore 
   set(WINRT 1)
   set(WINSTORE 1)
-  set(WIN32 1) ## defined in cmake?
   set(OS WinRT)
   if(ARCH STREQUAL ARMV7)
     set(ARCH arm)
