@@ -7,6 +7,8 @@
 #
 # clang + lld to cross build apps for linux
 #
+# LINUX_FLAGS: flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ...
+# CMAKE_SYSTEM_PROCESSOR: REQUIRED
 
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
@@ -14,9 +16,11 @@ option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is 
 option(USE_TARGET_LIBCXX "libc++ headers bundled with clang are searched and used by default. usually safe if abi is stable. set to true to use target libc++ if version is different" OFF)
 option(USE_COMPILER_RT "use compiler-rt instead of libgcc as compiler runtime library" OFF)
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
-option(LINUX_FLAGS "flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ..." "")
 option(USE_STDCXX "libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler" 0)
 
+if(NOT CMAKE_SYSTEM_PROCESSOR)
+  message(WARNING "CMAKE_SYSTEM_PROCESSOR is required")
+endif()
 set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be used, e.g. apple clang flags are added on macOS
 # "/usr/local/opt/llvm/bin/ld.lld" --sysroot=/Users/wangbin/dev/rpi/sysroot -pie -X --eh-frame-hdr -m armelf_linux_eabi -dynamic-linker /lib/ld-linux-armhf.so.3 -o test/audiodec /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/Scrt1.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crti.o /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtbeginS.o -L/Users/wangbin/dev/rpi/sysroot/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib --build-id --as-needed --gc-sections --enable-new-dtags -z origin "-rpath=\$ORIGIN" "-rpath=\$ORIGIN/lib" -rpath-link /Users/wangbin/dev/multimedia/mdk/external/lib/rpi/armv6 test/CMakeFiles/audiodec.dir/audiodec.cpp.o libmdk.so.0.1.0 -lc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtendS.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crtn.o
 
@@ -24,6 +28,8 @@ set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be 
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   CMAKE_SYSTEM_PROCESSOR
   CMAKE_C_COMPILER # find_program only once
+  LINUX_FLAGS
+  LD_LLD
 )
 
 if(NOT CMAKE_C_COMPILER)
@@ -36,9 +42,11 @@ if(NOT CMAKE_C_COMPILER)
     if(NOT EXISTS "${CMAKE_CXX_COMPILER}") # homebrew, clang-6.0 but clang++ has no suffix
       string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     endif()
+    string(REGEX REPLACE ".*clang(|-[0-9]+[\\.0]*)$" "lld\\1" LD_LLD "${CMAKE_C_COMPILER}")
   else()
     set(CMAKE_C_COMPILER clang)
     set(CMAKE_CXX_COMPILER clang++)
+    set(LD_LLD lld)
   endif()
 endif()
 
@@ -68,26 +76,22 @@ execute_process(
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 
 # Sysroot.
-set(CMAKE_SYSROOT ${LINUX_SYSROOT})
+if(EXISTS "${LINUX_SYSROOT}")
+  set(CMAKE_SYSROOT ${LINUX_SYSROOT})
+# CMake 3.9 tries to use CMAKE_SYSROOT_COMPILE before it gets set from CMAKE_SYSROOT, which leads to using the system's /usr/include. Set this manually.
+# https://github.com/android-ndk/ndk/issues/467
+  set(CMAKE_SYSROOT_COMPILE "${CMAKE_SYSROOT}")
+endif()
 file(GLOB_RECURSE PKGCONFIG_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/lib/*pkgconfig*") # pkgconfig is dir, so LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
 list(FILTER PKGCONFIG_DIRS INCLUDE REGEX "/pkgconfig")
 string(REPLACE ";" ":" PKGCONFIG_DIRS "${PKGCONFIG_DIRS}")
-if(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING) # default is true
   set(ENV{PKG_CONFIG_PATH} "${CMAKE_SYSROOT}/usr/share/pkgconfig:${PKGCONFIG_DIRS}")
 endif()
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
-# CMake 3.9 tries to use CMAKE_SYSROOT_COMPILE before it gets set from CMAKE_SYSROOT, which leads to using the system's /usr/include. Set this manually.
-# https://github.com/android-ndk/ndk/issues/467
-set(CMAKE_SYSROOT_COMPILE "${CMAKE_SYSROOT}")
-
-set(LINUX_CC_FLAGS "-g")
-# Debug and release flags.
-set(LINUX_CC_FLAGS_DEBUG "-O0 -fno-limit-debug-info")
-set(LINUX_CC_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 if(USE_LIBCXX)
   if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
@@ -119,7 +123,7 @@ if(USE_LIBCXX)
       OUTPUT_VARIABLE LIBCXX_NEEDED
       OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    string(FIND "${LIBCXX_NEEDED}" libc++abi.so.1 LIBCXX_ABI_LIBCXXABI)
+    string(FIND "${LIBCXX_NEEDED}" libc++abi.so.1 LIBCXX_ABI_LIBCXXABI) # TODO: built with static libc++abi, check exported abi symbols
     if(LIBCXX_ABI_LIBCXXABI EQUAL -1)
       message("libc++ is not built as libc++abi. not safe to use thread_local on old libstdc++ runtime")
       #set(USE_STD_TLS OFF)
@@ -168,12 +172,12 @@ else() # gcc files can be found by clang
 endif()
 
 if(CLANG_AS_LINKER)
-  link_libraries(-Wl,--build-id -fuse-ld=lld) # -s: strip
+  link_libraries(-Wl,--build-id -fuse-ld=${LD_LLD}) # -s: strip
   if(USE_COMPILER_RT)
     link_libraries(-rtlib=compiler-rt)
   endif()
 else()
-  #set(CMAKE_LINER      "lld" CACHE INTERNAL "linker" FORCE)
+  #set(CMAKE_LINER      "${LD_LLD}" CACHE INTERNAL "linker" FORCE)
   set(LINUX_LD_FLAGS "${LINUX_LD_FLAGS} --build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
   macro(set_cc_clang lang)
     set(CMAKE_${lang}_LINK_EXECUTABLE
@@ -194,5 +198,6 @@ set(CMAKE_AR         "${CMAKE_LLVM_AR}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} ar"
 set(CMAKE_C_FLAGS    "${LINUX_FLAGS}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c compiler flags" FORCE)
 set(CMAKE_CXX_FLAGS  "${LINUX_FLAGS} ${LINUX_FLAGS_CXX}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c++ compiler/linker flags" FORCE)
 set(CMAKE_ASM_FLAGS  "${LINUX_FLAGS}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} asm compiler flags" FORCE)
+set(LD_LLD "${LD_LLD}" CACHE INTERNAL "${LD_LLD} as linker" FORCE)
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
