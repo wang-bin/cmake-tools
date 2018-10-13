@@ -63,12 +63,15 @@ macro(dec_to_hex VAR VAL)
     string(ASCII ${A} ${VAR})
   endif()
 endmacro(dec_to_hex)
-macro(version_to_hex VAR VAL)
-  string(REGEX MATCH "([0-9]*)\\.([0-9]*)" matched ${VAL})
-  dec_to_hex(MAJOR ${CMAKE_MATCH_1})
-  dec_to_hex(MINOR ${CMAKE_MATCH_2})
-  set(${VAR} "0x0${MAJOR}0${MINOR}")
-endmacro()
+if(NOT CMAKE_SYSTEM_VERSION)
+  set(CMAKE_SYSTEM_VERSION 6.0) # default is latest(10.0) set by windows.h
+endif()
+string(REGEX MATCH "([0-9]*)\\.([0-9]*)" matched ${CMAKE_SYSTEM_VERSION})
+set(WIN_MAJOR ${CMAKE_MATCH_1})
+set(WIN_MINOR ${CMAKE_MATCH_2})
+dec_to_hex(WIN_MAJOR_HEX ${WIN_MAJOR})
+dec_to_hex(WIN_MINOR_HEX ${WIN_MINOR})
+set(WIN_VER_HEX 0x0${WIN_MAJOR_HEX}0${WIN_MINOR_HEX})
 
 if(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone)
   add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP -D_WIN32_WINNT=0x0603) ## cmake3.10 does not define _WIN32_WINNT?
@@ -77,10 +80,14 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL WindowsStore)
   add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_WIN32_WINNT=0x0A00)
   set(CMAKE_SYSTEM_VERSION 10.0)
 else()
-  if(CMAKE_SYSTEM_VERSION)
-    version_to_hex(WIN_VER_HEX ${CMAKE_SYSTEM_VERSION})
-    add_definitions(-D_WIN32_WINNT=${WIN_VER_HEX})
-  endif()
+  add_definitions(-D_WIN32_WINNT=${WIN_VER_HEX})
+endif()
+if(CMAKE_SYSTEM_VERSION LESS 6.0 AND CMAKE_SYSTEM_VERSION GREATER 5.0 AND NOT WINRT AND NOT WINCE)
+  set(WINDOWS_XP 1) # x86: 5.1, x64: 5.2
+  set(WINDOWS_XP_SET 1)
+endif()
+if(CMAKE_SYSTEM_VERSION LESS 6.0)
+  set(EXE_LFLAGS "-SUBSYSTEM:CONSOLE,${WIN_MAJOR}.0${WIN_MINOR}")
 endif()
 
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
@@ -199,15 +206,15 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
     )
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-else()
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
   list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE -EHsc)
-  list(APPEND LINK_FLAGS -appcontainer)
+  list(APPEND LINK_FLAGS -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib)
   if(CMAKE_SYSTEM_NAME STREQUAL WindowsStore) # checked by MSVC_VERSION
     list(APPEND LINK_FLAGS WindowsApp.lib) # win10 only
   elseif(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone)
     list(APPEND LINK_FLAGS WindowsPhoneCore.lib RuntimeObject.lib PhoneAppModelHost.lib) # win10 only
   endif()
+  set(WINRT_SET 1)
 endif()
 
 string(REPLACE ";" " " COMPILE_FLAGS "${COMPILE_FLAGS}")
@@ -215,7 +222,7 @@ set(CMAKE_C_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS "${LINK_FLAGS} ${EXE_LFLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_MODULE_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_SHARED_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 

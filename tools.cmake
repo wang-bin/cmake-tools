@@ -19,6 +19,10 @@
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
 # TODO: vc 1913+  "-Zc:__cplusplus -std:c++14" to correct __cplusplus. see qt msvc-version.conf. https://blogs.msdn.microsoft.com/vcblog/2018/04/09/msvc-now-correctly-reports-__cplusplus/
+# libcxx macros: add_compile_flags_if_supported, add_link_flags_if, add_link_flags_if_supported
+# cmake_dependent_option
+# add_flag_if_not(flags XXX_FLAG_ON) # XXX_FLAG_OFF is set by add_flag
+
 if(POLICY CMP0022) # since 2.8.12. link_libraries()
   cmake_policy(SET CMP0022 NEW)
 endif()
@@ -33,7 +37,6 @@ set(TOOLS_CMAKE_INCLUDED 1)
 
 option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
 option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. thin: thin LTO. TRUE: max parallelism" 0)
-option(WINDOWS_XP "Windows XP compatible build for Windows desktop target using VC compiler" ON)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU 
 option(NO_RTTI "Enable C++ rtti" ON)
@@ -113,34 +116,33 @@ endif()
 if(WIN32 AND NOT WINDOWS_PHONE AND NOT WINDOWS_STORE)
   set(WINDOWS_DESKTOP 1)
 endif()
-if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore 
-  set(WINRT 1)
-  set(WINSTORE 1)
+if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPhone/WindowsStore
   set(OS WinRT)
   if(ARCH STREQUAL ARMV7)
     set(ARCH arm)
   endif()
-  if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
-    # SEH?
-    if(WINDOWS_PHONE)
-      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
-    else()
-      add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
-    endif()
-    #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.lib -nodefaultlib:ole32.lib")
+  set(WINRT 1)
+  set(WINSTORE 1)
+endif()
+if(WINRT AND NOT WINRT_SET AND NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+  # SEH?
+  if(WINDOWS_PHONE)
+    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
+  else()
+    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
   endif()
+  #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib")
 endif()
 
-if(WINDOWS_XP AND MSVC AND NOT WINDOWS_STORE AND NOT WINDOWS_PHONE AND NOT WINCE)
+if(WINDOWS_XP AND MSVC AND NOT WINDOWS_XP_SET) # move too win.cmake?
+  set(WIN_MINOR 01)
   if(CMAKE_CL_64)
-    add_definitions(-D_WIN32_WINNT=0x0502)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.02")
-  else()
-    add_definitions(-D_WIN32_WINNT=0x0501)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.01")
+    set(WIN_MINOR 02)
   endif()
+  add_definitions(-D_WIN32_WINNT=0x05${WIN_MINOR})
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.${WIN_MINOR}")
 endif()
 
 if(NOT OS)
