@@ -96,20 +96,10 @@ if(NOT ARCH)
 # here we simply use cmake vars with some reasonable assumptions
   set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID
   if(NOT ARCH)
-    if(CMAKE_CROSSCOMPILING)
-      # assume CMAKE_SYSTEM_PROCESSOR is set correctly(e.g. in toolchain file). can be equals to CMAKE_HOST_SYSTEM_PROCESSOR, e.g. ios simulator
-      set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
-    else()
-      if(CMAKE_SYSTEM_PROCESSOR MATCHES x86 OR CMAKE_SYSTEM_PROCESSOR MATCHES AMD64)
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-          set(ARCH x64)
-        else()
-          set(ARCH x86)
-        endif()
-      else()
-        # maybe host build on arm, we can assume only cross build can build for another arch, unlike gcc -m32/64
-        set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
-      endif()
+    # assume CMAKE_SYSTEM_PROCESSOR is set correctly(e.g. in toolchain file). can equals to CMAKE_HOST_SYSTEM_PROCESSOR, e.g. ios simulator
+    set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
+    if(NOT ARCH)
+      set(ARCH ${CMAKE_HOST_SYSTEM_PROCESSOR})
     endif()
   endif()
 endif()
@@ -170,6 +160,13 @@ if(NOT OS)
     endif()
     set(ARCH ${ANDROID_ABI})
   endif()
+endif()
+
+if(ARCH MATCHES 86_64 OR ARCH MATCHES AMD64)
+  set(ARCH x64)
+endif()
+if(ARCH MATCHES 86)
+  set(ARCH x86)
 endif()
 
 if(APPLE)
