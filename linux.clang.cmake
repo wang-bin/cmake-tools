@@ -166,7 +166,7 @@ else() # gcc files can be found by clang
     file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++")
     list(FILTER CXX_DIRS INCLUDE REGEX "/c\\+\\+$")
     foreach(dir IN ITEMS ${CXX_DIRS})
-      add_compile_options("-cxx-isystem ${dir}/${USE_STDCXX}")      
+      add_compile_options("-cxx-isystem${dir}/${USE_STDCXX}") # no space after -cxx-isystem
     endforeach()
   endif()
 endif()
