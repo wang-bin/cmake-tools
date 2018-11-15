@@ -237,13 +237,6 @@ function(test_lflags var flags)
   endif()
 endfunction()
 
-function(enable_lflags flags)
-  test_lflags(HAVE_LFLAGS "${flags}")
-  if(HAVE_LFLAGS)
-    link_libraries(${HAVE_LFLAGS})
-  endif()
-endfunction()
-
 if(ANDROID)
   if(NOT ANDROID_NDK)
     if(CMAKE_ANDROID_NDK)
@@ -362,10 +355,10 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
 
 # ICF, ELF only? ICF is enbled by vc release mode(/opt:ref,icf)
 # FIXME: -fuse-ld=lld is not used. wrong result for android. what about linux desktop? lflags -fuse-ld=lld in linux.clang.cmake works?
-  test_lflags(WL_ICF "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be used with -r
-  if(WL_ICF)
-    link_libraries(${WL_ICF})
-  else() # lld only supports --icf=all, but only safe with clang-7.0+ -faddrsig
+test_lflags(WL_ICF_SAFE "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be used with -r
+  if(WL_ICF_SAFE)
+    link_libraries(${WL_ICF_SAFE})
+  else() # --icf=all is only safe with clang-7.0+ -faddrsig(default on)
     check_c_compiler_flag("-faddrsig" HAVE_FADDRSIG) # ndk18 clang7.0svn does not support it?
     if(HAVE_FADDRSIG)
       # add_compile_options(-faddrsig) # addrsig is turned on by default. building for COFF with -faddrsig results in wrong symbols, e.g. depended __impl_ prefix are removed
@@ -381,31 +374,29 @@ test_lflags(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
 if(WL_NO_SHLIB_UNDEFINED)
   link_libraries(${WL_NO_SHLIB_UNDEFINED})
 endif()
+test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
+if(AS_NEEDED)
+  link_libraries(${AS_NEEDED})
+endif()
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
-check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
-if(HAVE_FUNCTION_SECTIONS)
-  set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
-  if(NOT WIN32) # mingw gcc will increase size
-    list(APPEND DCE_CFLAGS -fdata-sections)
-  endif()
-endif()
 test_lflags(GC_SECTIONS "-Wl,--gc-sections") # FIXME: can not be used with -r
-test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
-if(WIN32)
-  # test_lflags(OPT_REF "-opt:ref") # ref is turned on by vc in release mode. CMAKE_LINKER is link.exe, lld-link. -opt:icf is turned on
-  #test_lflags(OPT_REF "-Wl,-opt:ref") # CMAKE_LINKER is lld-link. but cmake only supports clang-cl, so -Wl is not supported
+if(GC_SECTIONS)
+  check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
+  if(HAVE_FUNCTION_SECTIONS)
+    set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
+    if(NOT WIN32) # mingw gcc will increase size
+      list(APPEND DCE_CFLAGS -fdata-sections)
+    endif()
+    if(DCE_CFLAGS)
+      add_compile_options(${DCE_CFLAGS})
+    endif()
+  endif()
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GC_SECTIONS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GC_SECTIONS}")
 endif()
-string(STRIP "${AS_NEEDED} ${GC_SECTIONS} ${OPT_REF}" DCE_LFLAGS)
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
-if(DCE_CFLAGS)
-  add_compile_options(${DCE_CFLAGS})
-endif()
-if(DCE_LFLAGS)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${DCE_LFLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${DCE_LFLAGS}")
-endif()
 
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
@@ -648,9 +639,9 @@ endfunction()
 
 # setup_deploy: deploy libs, public headers(PUBLIC_HEADER as target property and target sources) and runtime binaries of tgt
 function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
-  if(APPLE AND NOT IOS)
+  if(APPLE)
     # macOS only
-    if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
+    if(NOT IOS AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
       add_custom_command(TARGET ${tgt} POST_BUILD
         COMMAND install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${tgt}>
       )
