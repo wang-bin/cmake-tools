@@ -17,6 +17,7 @@
 # when cross building on a case sensitive filesystem, symbolic links for libs and vfs overlay for headers are required.
 # You can download winsdk containing scripts to generate links and vfs overlay from: https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
+# WARNING: rc is required for win host build
 
 # /bin/link will be selected by cmake
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
@@ -196,7 +197,9 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
     -imsvc "${WINSDK_INCLUDE}/shared"
     -imsvc "${WINSDK_INCLUDE}/um"
     -imsvc "${WINSDK_INCLUDE}/winrt")
-
+endif()
+set(VSCMD_VER $ENV{VSCMD_VER})
+if(NOT VSCMD_VER)
   list(APPEND LINK_FLAGS
     # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
     /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
@@ -205,7 +208,6 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
     -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
     )
 endif()
-
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
   list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE -EHsc)
   list(APPEND LINK_FLAGS -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib)
