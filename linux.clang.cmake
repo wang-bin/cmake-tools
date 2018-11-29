@@ -9,7 +9,7 @@
 #
 # LINUX_FLAGS: flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ...
 # CMAKE_SYSTEM_PROCESSOR: REQUIRED
-
+# TODO: file(GLOB) only check for target arch, and no arch, e.g. /usr/lib/{$arch/,}libc++.so.1
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
 option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is built with none abi" OFF) # default value must be bool
@@ -34,7 +34,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 )
 
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-8 clang-8.0 clang-7.0 clang-6.0 clang-5.0 clang-4.0 clang
+  find_program(CMAKE_C_COMPILER clang-8 clang-7 clang-6.0 clang-5.0 clang-4.0 clang
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
