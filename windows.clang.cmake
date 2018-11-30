@@ -177,7 +177,7 @@ set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     #-fms-compatibility-version=19.15
     )
 list(APPEND LINK_FLAGS
-    #-opt:ref # turned on by default in release mode
+    -opt:ref # turned on by default in release mode (vc link.exe, not lld-link?)
     ${ONECORE_LIB}
     )
 
