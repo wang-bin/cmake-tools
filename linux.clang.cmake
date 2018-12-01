@@ -44,6 +44,14 @@ if(NOT CMAKE_C_COMPILER)
       string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     endif()
     string(REGEX REPLACE ".*clang(|-[0-9]+[\\.0]*)$" "lld\\1" LD_LLD "${CMAKE_C_COMPILER}")
+    execute_process(
+      COMMAND ${CMAKE_C_COMPILER} -print-prog-name=${LD_LLD}
+      OUTPUT_VARIABLE LD_LLD_PATH
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT EXISTS ${LD_LLD_PATH}) # llvm on macOS(via brew) has lld but not lld-?
+      set(LD_LLD lld)
+    endif()
   else()
     set(CMAKE_C_COMPILER clang)
     set(CMAKE_CXX_COMPILER clang++)
