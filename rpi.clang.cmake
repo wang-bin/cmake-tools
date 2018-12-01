@@ -36,5 +36,7 @@ else()
 endif()
 
 # set options in linux.clang.cmake
-set(USE_LIBCXX ON)
+if(NOT DEFINED USE_LIBCXX)
+  set(USE_LIBCXX ON CACHE INTERNAL "use libc++" FORCE) # cache is required by cmake3.13 option() (CMP0077)
+endif()
 include(${CMAKE_CURRENT_LIST_DIR}/linux.clang.cmake)
