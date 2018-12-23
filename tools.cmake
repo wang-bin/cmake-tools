@@ -324,6 +324,9 @@ if(NO_EXCEPTIONS)
 endif()
 
 
+if(MSVC)
+  add_compile_options(-guard:cf) #-d2guard4 -Wv:18 # fix latest angle crash
+endif()
 if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
   if(ELF_HARDENED)
     set(CFLAGS_STACK_PROTECTOR -fstack-protector-strong) # -fstack-protector-strong(since gcc4.9) is default for debian
@@ -368,14 +371,6 @@ test_lflags(WL_ICF_SAFE "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be us
   endif()
 endif()
 
-test_lflags(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
-if(WL_NO_SHLIB_UNDEFINED)
-  link_libraries(${WL_NO_SHLIB_UNDEFINED})
-endif()
-test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
-if(AS_NEEDED)
-  link_libraries(${AS_NEEDED})
-endif()
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
@@ -398,6 +393,15 @@ endif()
 if(APPLE)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -dead_strip")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -dead_strip")
+endif()
+
+test_lflags(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
+if(WL_NO_SHLIB_UNDEFINED)
+  link_libraries(${WL_NO_SHLIB_UNDEFINED})
+endif()
+test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
+if(AS_NEEDED)
+  link_libraries(${AS_NEEDED})
 endif()
 
 if(STATIC_LIBGCC)
