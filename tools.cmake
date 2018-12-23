@@ -36,7 +36,7 @@ endif()
 set(TOOLS_CMAKE_INCLUDED 1)
 
 option(ELF_HARDENED "Enable ELF hardened flags. Toolchain file from NDK override the flags" ON)
-option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. thin: thin LTO. TRUE: max parallelism" 0)
+option(USE_LTO "Link time optimization. 0: disable; 1: enable; N: N parallelism. thin: thin LTO. TRUE: max parallelism. See also CMAKE_INTERPROCEDURAL_OPTIMIZATION" 0)
 option(SANITIZE "Enable address sanitizer. Debug build is required" OFF)
 option(COVERAGE "Enable source based code coverage(gcc/clang)" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU 
@@ -118,9 +118,9 @@ endif()
 if(WINRT AND NOT WINRT_SET AND NOT CMAKE_GENERATOR MATCHES "Visual Studio")
   # SEH?
   if(WINDOWS_PHONE)
-    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP) #_WIN32_WINNT=0x0603 # TODO: cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
+    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP -D_WIN32_WINNT=0x0603) # cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
   else()
-    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
+    add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_WIN32_WINNT=0x0A00)
   endif()
   #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib")
