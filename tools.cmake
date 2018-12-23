@@ -22,7 +22,7 @@
 # libcxx macros: add_compile_flags_if_supported, add_link_flags_if, add_link_flags_if_supported
 # cmake_dependent_option
 # add_flag_if_not(flags XXX_FLAG_ON) # XXX_FLAG_OFF is set by add_flag
-
+# add_link_options, target_link_options/directories,
 if(POLICY CMP0022) # since 2.8.12. link_libraries()
   cmake_policy(SET CMP0022 NEW)
 endif()
@@ -133,7 +133,7 @@ if(WINDOWS_XP AND MSVC AND NOT WINDOWS_XP_SET) # move too win.cmake?
     set(WIN_MINOR 02)
   endif()
   add_definitions(-D_WIN32_WINNT=0x05${WIN_MINOR})
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.${WIN_MINOR}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.${WIN_MINOR}") # mingw: --subsystem name:x[.y]
 endif()
 
 if(NOT OS)
@@ -395,7 +395,6 @@ if(GC_SECTIONS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GC_SECTIONS}")
 endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
-
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc")
@@ -494,6 +493,15 @@ if(NOT CMAKE_OBJCOPY)
     if(CMAKE_OBJCOPY STREQUAL CMAKE_C_COMPILER)
       string(REGEX REPLACE "gcc[^/]*$" "objcopy" CMAKE_OBJCOPY ${CMAKE_OBJCOPY}) # /usr/bin/gcc-6
     endif()
+  endif()
+  execute_process(
+      COMMAND ${CMAKE_OBJCOPY} -V
+      ERROR_VARIABLE OBJCOPY_ERROR
+      OUTPUT_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(OBJCOPY_ERROR) # llvm-objcopy on windows may be a bash script which can not be executed in cmd via cmake internal
+    set(CMAKE_OBJCOPY "")
   endif()
   message("CMAKE_OBJCOPY:${CMAKE_OBJCOPY}")
   mark_as_advanced(CMAKE_OBJCOPY)
