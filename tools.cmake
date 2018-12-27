@@ -664,8 +664,9 @@ endfunction()
 # setup_deploy: deploy libs, public headers(PUBLIC_HEADER as target property and target sources) and runtime binaries of tgt
 function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
   if(APPLE)
-    # macOS only
-    if(NOT IOS AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
+    # macOS SHARED_LIBRARY only
+    get_target_property(TYPE ${tgt} TYPE)
+    if(TYPE STREQUAL SHARED_LIBRARY AND NOT IOS AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
       add_custom_command(TARGET ${tgt} POST_BUILD
         COMMAND install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${tgt}>
       )
