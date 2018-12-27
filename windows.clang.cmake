@@ -19,10 +19,11 @@
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
 # WARNING: rc is required for win host build
 
+# as: clang -target armv7-win32-gnu
 # /bin/link will be selected by cmake
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
-option(USE_CLANG_CL "use clang-cl" ON)
+option(USE_CLANG_CL "use clang-cl, same as clang --driver-mode=cl" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++. set to libc++ path including include and lib dirs to enable" OFF)
 option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
@@ -172,7 +173,6 @@ if(USE_LIBCXX)
   list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
 endif()
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
-    -D_CRT_SECURE_NO_WARNINGS
     --target=${TRIPLE_ARCH}-windows-msvc
     #-fms-compatibility-version=19.15
     )

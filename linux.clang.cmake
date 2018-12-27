@@ -134,7 +134,7 @@ if(USE_LIBCXX)
     )
     string(FIND "${LIBCXX_NEEDED}" libc++abi.so.1 LIBCXX_ABI_LIBCXXABI) # TODO: built with static libc++abi, check exported abi symbols
     if(LIBCXX_ABI_LIBCXXABI EQUAL -1)
-      message("libc++ is not built as libc++abi. not safe to use thread_local on old libstdc++ runtime")
+      #message("libc++ is not built with libc++abi. not safe to use thread_local on old libstdc++ runtime for libc++<7.0")
       #set(USE_STD_TLS OFF)
     else()
       file(GLOB_RECURSE LIBCXXABI_SO "${CMAKE_SYSROOT}/usr/lib/*libc++abi.so.1") #LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
