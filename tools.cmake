@@ -142,10 +142,10 @@ if(NOT OS)
   elseif(APPLE)
     if(IOS)
       set(OS iOS)
-      set(ARCH) # assume always use multi arch library
     else()
       set(OS macOS)
     endif()
+    set(ARCH) # assume always use multi arch library
   elseif(ANDROID)
     set(OS android)
     if(ANDROID_NDK_TOOLCHAIN_INCLUDED OR ANDROID_TOOLCHAIN) # ANDROID_NDK_TOOLCHAIN_INCLUDED is defined in r15
@@ -289,13 +289,6 @@ endif()
 if(RPI)
   include_directories(${RPI_VC_DIR}/include)
   list(APPEND EXTRA_INCLUDE ${RPI_VC_DIR}/include)
-endif()
-if(EXISTS ${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH})
-  list(APPEND EXTRA_LIB_DIR "${CMAKE_SOURCE_DIR}/external/lib/${OS}/${ARCH}")
-endif()
-if(EXISTS ${CMAKE_SOURCE_DIR}/external/include)
-  include_directories(${CMAKE_SOURCE_DIR}/external/include)
-  list(APPEND EXTRA_INCLUDE ${CMAKE_SOURCE_DIR}/external/include)
 endif()
 
 
