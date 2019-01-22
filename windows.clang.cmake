@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018, Wang Bin
+# Copyright (c) 2018-2019, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc19.0 because cmake will test msvc flags
@@ -94,7 +94,7 @@ endif()
 
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
+  find_program(CMAKE_C_COMPILER clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
