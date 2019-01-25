@@ -132,21 +132,25 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
   set(WINSDK_ARCH arm)
 endif()
 
-# fetch env vars set by vcvarsall.bat if required vars are not set
-if(NOT WINSDK_DIR)
-  set(WINSDK_DIR $ENV{WindowsSdkDir})
+# check env vars set by vcvarsall.bat
+if(CMAKE_HOST_WIN32 AND EXISTS "$ENV{WindowsSdkDir}")
+else()
+  if(NOT WINSDK_DIR)
+    set(WINSDK_DIR "$ENV{WindowsSdkDir}")
+    set(WINSDK_VER "$ENV{WindowsSDKVersion}")
+  endif()
+  set(WINSDK_INCLUDE "${WINSDK_DIR}/Include/${WINSDK_VER}")
+  set(WINSDK_LIB "${WINSDK_DIR}/Lib/${WINSDK_VER}")
 endif()
-if(NOT WINSDK_VER)
-  set(WINSDK_VER $ENV{WindowsSDKVersion})
-endif()
-if(NOT MSVC_DIR)
-  set(MSVC_DIR $ENV{VCDIR})
+if(CMAKE_HOST_WIN32 AND EXISTS "$ENV{VCToolsInstallDir}")
+else()
+  if(NOT MSVC_DIR)
+    set(MSVC_DIR "$ENV{VCDIR}")
+  endif()
+  set(MSVC_INCLUDE "${MSVC_DIR}/include")
+  set(MSVC_LIB "${MSVC_DIR}/lib")
 endif()
 
-set(MSVC_INCLUDE "${MSVC_DIR}/include")
-set(MSVC_LIB "${MSVC_DIR}/lib")
-set(WINSDK_INCLUDE "${WINSDK_DIR}/Include/${WINSDK_VER}")
-set(WINSDK_LIB "${WINSDK_DIR}/Lib/${WINSDK_VER}")
 if(ONECORE)
   set(ONECORE_DIR onecore)
   if(CMAKE_SYSTEM_NAME STREQUAL Windows)
@@ -160,9 +164,6 @@ else()
   endif()
 endif()
 
-if(NOT EXISTS "${WINSDK_INCLUDE}/um/Windows.h")
-  message(SEND_ERROR "Cannot find Windows.h")
-endif()
 if(USE_LIBCXX AND NOT EXISTS ${USE_LIBCXX}/include/c++/v1/__config)
   message(SEND_ERROR "USE_LIBCXX MUST be a valid dir contains libc++ include and lib")
 endif()
@@ -191,23 +192,33 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
     endif()
     list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_DIR}/vfs.yaml")
   endif()
+endif()
+
+if(EXISTS "${MSVC_INCLUDE}")
+  list(APPEND COMPILE_FLAGS -imsvc "${MSVC_INCLUDE}")
+  list(APPEND LINK_FLAGS -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}")
+endif()
+if(EXISTS "${WINSDK_INCLUDE}")
   list(APPEND COMPILE_FLAGS
-    -imsvc "${MSVC_INCLUDE}"
     -imsvc "${WINSDK_INCLUDE}/ucrt"
     -imsvc "${WINSDK_INCLUDE}/shared"
     -imsvc "${WINSDK_INCLUDE}/um"
     -imsvc "${WINSDK_INCLUDE}/winrt")
-endif()
-set(VSCMD_VER $ENV{VSCMD_VER})
-if(NOT VSCMD_VER)
   list(APPEND LINK_FLAGS
-    # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
-    /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
     -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
     -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
     )
 endif()
+
+set(VSCMD_VER $ENV{VSCMD_VER})
+if(NOT VSCMD_VER)
+  list(APPEND LINK_FLAGS
+    # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
+    /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
+    )
+endif()
+
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
   list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE -EHsc)
   list(APPEND LINK_FLAGS -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib)
