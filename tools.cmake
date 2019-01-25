@@ -317,6 +317,10 @@ endif()
 
 if(MSVC)
   add_compile_options(-guard:cf) #-d2guard4 -Wv:18 # fix latest angle crash
+  if(NOT OPT_REF_SET)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref,icf,lbr")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref,icf,lbr")
+  endif()
 endif()
 if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
   if(ELF_HARDENED)

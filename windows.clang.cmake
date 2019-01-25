@@ -176,11 +176,14 @@ endif()
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-windows-msvc
     #-fms-compatibility-version=19.15
+    #-Werror=unknown-argument
     )
 list(APPEND LINK_FLAGS
-    -opt:ref # turned on by default in release mode (vc link.exe, not lld-link?)
+    -incremental:no # conflict with -opt:ref
+    -opt:ref,icf,lbr # turned on by default in release mode (vc link.exe, not lld-link?)
     ${ONECORE_LIB}
     )
+set(OPT_REF_SET 1)
 
 if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools like rc and mt exists
   if(NOT EXISTS "${WINSDK_INCLUDE}/um/WINDOWS.H")
