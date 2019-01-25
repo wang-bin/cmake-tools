@@ -279,6 +279,14 @@ if(ANDROID)
   if(CMAKE_CXX_STANDARD_LIBRARIES_INIT) # cmake does not add supc++, check supc++ to avoid setting CMAKE_CXX_STANDARD_LIBRARIES to empty(no stl)
     set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}")
   endif()
+  # TODO: ndk19 add toolchain sysroot, e.g. ${ANDROID_TOOLCHAIN_ROOT}/sysroot/usr/lib/${ANDROID_TOOLCHAIN_NAME}/${ANDROID_PLATFORM_LEVEL}
+  string(REPLACE "-clang" "" ANDROID_TOOLCHAIN_NAME_BASE ${ANDROID_TOOLCHAIN_NAME})
+  set(ANDROID_PLATFORM_LIBS_DIR ${ANDROID_SYSROOT}/usr/lib/${ANDROID_TOOLCHAIN_NAME_BASE}/${ANDROID_PLATFORM_LEVEL})
+  # CMAKE_SYSTEM_LIBRARY_PATH?
+  if(EXISTS "${ANDROID_PLATFORM_LIBS_DIR}") # AND ANDROID_NDK_REVISION
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath-link,${ANDROID_PLATFORM_LIBS_DIR}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath-link,${ANDROID_PLATFORM_LIBS_DIR}")
+  endif()
 endif()
 
 # project independent dirs
@@ -421,7 +429,7 @@ if(USE_LTO)
       if(USE_LTO GREATER 0)
         set(CPUS ${USE_LTO})
       elseif(USE_LTO STREQUAL thin)
-        set(LTO_FLAGS "-flto=thin")
+        set(LTO_FLAGS "-flto=thin") #TODO: -Wa,--noexecstack warning on android. https://github.com/android-ndk/ndk/issues/776#issuecomment-415577082
         set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
         check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_THIN)
