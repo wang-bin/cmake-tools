@@ -111,6 +111,8 @@ if(WINDOWS_PHONE OR WINDOWS_STORE) # defined when CMAKE_SYSTEM_NAME is WindowsPh
   set(OS WinRT)
   if(ARCH STREQUAL ARMV7)
     set(ARCH arm)
+  elseif(ARCH STREQUAL ARM64)
+    set(ARCH arm64)
   endif()
   set(WINRT 1)
   set(WINSTORE 1)
@@ -396,6 +398,7 @@ if(GC_SECTIONS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GC_SECTIONS}")
 endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
+# TODO: gcc -fdce
 if(APPLE)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -dead_strip")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -dead_strip")
