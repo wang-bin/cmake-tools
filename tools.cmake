@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2018, Wang Bin
+# Copyright (c) 2017-2019, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -14,14 +14,11 @@
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
 # clang/gcc: -fms-extensions
-# enable/add_c_flags_if()
-
+# windres, llvm-rc, llvm-mt, mt, exe/dll manifest
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
 # TODO: vc 1913+  "-Zc:__cplusplus -std:c++14" to correct __cplusplus. see qt msvc-version.conf. https://blogs.msdn.microsoft.com/vcblog/2018/04/09/msvc-now-correctly-reports-__cplusplus/
-# libcxx macros: add_compile_flags_if_supported, add_link_flags_if, add_link_flags_if_supported
 # cmake_dependent_option
-# add_flag_if_not(flags XXX_FLAG_ON) # XXX_FLAG_OFF is set by add_flag
 # add_link_options, target_link_options/directories,
 if(POLICY CMP0022) # since 2.8.12. link_libraries()
   cmake_policy(SET CMP0022 NEW)
@@ -51,6 +48,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
+include(${CMAKE_CURRENT_LIST_DIR}/add_flags.cmake NO_POLICY_SCOPE)
 
 # set CMAKE_SYSTEM_PROCESSOR, CMAKE_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
 # defines RPI_VC_DIR for use externally
@@ -371,10 +369,7 @@ test_lflags(WL_ICF_SAFE "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be us
     check_c_compiler_flag("-faddrsig" HAVE_FADDRSIG) # ndk18 clang7.0svn does not support it?
     if(HAVE_FADDRSIG)
       # add_compile_options(-faddrsig) # addrsig is turned on by default. building for COFF with -faddrsig results in wrong symbols, e.g. depended __impl_ prefix are removed
-      test_lflags(WL_ICF_ALL "-Wl,--icf=all")
-      if(WL_ICF_ALL)
-        link_libraries(${WL_ICF_ALL})
-      endif()
+      add_link_flags_if_supported("-Wl,--icf=all")
     endif()
   endif()
 endif()
@@ -382,45 +377,30 @@ endif()
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
-test_lflags(GC_SECTIONS "-Wl,--gc-sections") # FIXME: can not be used with -r
+is_link_flag_supported("-Wl,--gc-sections" GC_SECTIONS) # FIXME: can not be used with -r
 if(GC_SECTIONS)
+  add_c_flags_if_supported("-ffunction-sections") # check cc, mac support it but has no effect
   check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
-  if(HAVE_FUNCTION_SECTIONS)
-    set(DCE_CFLAGS -ffunction-sections) # check cc, mac support it but has no effect
-    if(NOT WIN32) # mingw gcc will increase size
-      list(APPEND DCE_CFLAGS -fdata-sections)
-    endif()
-    if(DCE_CFLAGS)
-      add_compile_options(${DCE_CFLAGS})
-    endif()
+  if(NOT WIN32) # mingw gcc will increase size
+    add_c_flags_if_supported(-fdata-sections)
   endif()
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GC_SECTIONS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GC_SECTIONS}")
+  add_link_flags("-Wl,--gc-sections")
 endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 # TODO: gcc -fdce
-if(APPLE)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -dead_strip")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -dead_strip")
-endif()
-
-test_lflags(WL_NO_SHLIB_UNDEFINED "-Wl,--no-allow-shlib-undefined")
-if(WL_NO_SHLIB_UNDEFINED)
-  link_libraries(${WL_NO_SHLIB_UNDEFINED})
-endif()
-test_lflags(AS_NEEDED "-Wl,--as-needed") # not supported by 'opensource clang+apple ld64'
-if(AS_NEEDED)
-  link_libraries(${AS_NEEDED})
-endif()
+add_link_flags_if_supported(
+  -dead_strip
+  -Wl,--no-allow-shlib-undefined
+  -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
+  )
 
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
+  add_link_flags(-static-libgcc)
 endif()
 
 # If parallel lto is not supported, fallback to single job lto
-if(USE_LTO)
+if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
 # -fwhole-program-vtables
   if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC) # -GL is ignored by clang-cl
     set(LTO_CFLAGS "-GL")
