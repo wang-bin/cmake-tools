@@ -228,7 +228,10 @@ if(NOT VSCMD_VER)
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
-  list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE -EHsc)
+  list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE)
+  if(NOT WINSDK_ARCH STREQUAL "arm") # TODO: -EHsc internal error for arm
+    list(APPEND COMPILE_FLAGS -EHsc)
+  endif()
   list(APPEND LINK_FLAGS -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib)
   if(CMAKE_SYSTEM_NAME STREQUAL WindowsStore) # checked by MSVC_VERSION
     list(APPEND LINK_FLAGS WindowsApp.lib) # win10 only
@@ -261,4 +264,7 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/override.windows.c
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
   set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
   set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
+endif()
+if(WINSDK_ARCH STREQUAL "arm")
+  set(CMAKE_TRY_COMPILE_CONFIGURATION Release) # default is debug, /Zi error for arm
 endif()
