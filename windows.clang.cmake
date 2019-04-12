@@ -32,6 +32,8 @@ option(ONECORE "build with oncore" OFF)
 # Export configurable variables for the try_compile() command. Or set env var like llvm
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   CMAKE_C_COMPILER # avoid find_program multiple times
+  CMAKE_CXX_COMPILER
+  CMAKE_LINKER
   CMAKE_SYSTEM_NAME
   CMAKE_SYSTEM_PROCESSOR
   MSVC_DIR
@@ -99,20 +101,22 @@ if(NOT CMAKE_C_COMPILER)
     CMAKE_FIND_ROOT_PATH_BOTH
   )
   message("CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
-  if(CMAKE_C_COMPILER)
-    if(CMAKE_HOST_WIN32)
-      set(_EXE .exe)
-    endif()
+endif()
+
+if(CMAKE_C_COMPILER)
+  if(CMAKE_HOST_WIN32)
+    set(_EXE .exe)
+  endif()
+  if(NOT CMAKE_LINKER)
     string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "lld-link\\1${_EXE}" LLD_LINK "${CMAKE_C_COMPILER}")
     set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
     message("CMAKE_LINKER:${CMAKE_LINKER}")
-  else()
-    set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
-    set(CMAKE_LINKER lld-link CACHE FILEPATH "")
   endif()
-  set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER} CACHE FILEPATH "")
+else()
+  set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
+  set(CMAKE_LINKER lld-link CACHE FILEPATH "")
 endif()
-
+set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER} CACHE FILEPATH "")
 
 if(NOT CMAKE_SYSTEM_PROCESSOR)
   message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
@@ -177,6 +181,7 @@ set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-windows-msvc
     #-fms-compatibility-version=19.15
     #-Werror=unknown-argument
+    #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
     )
 list(APPEND LINK_FLAGS
     -incremental:no # conflict with -opt:ref
