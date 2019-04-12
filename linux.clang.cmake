@@ -209,5 +209,7 @@ set(CMAKE_CXX_FLAGS  "${LINUX_FLAGS} ${LINUX_FLAGS_CXX}"  CACHE INTERNAL "${CMAK
 set(CMAKE_ASM_FLAGS  "${LINUX_FLAGS}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} asm compiler flags" FORCE)
 set(CMAKE_CXX_LINK_FLAGS "${LINUX_LINK_FLAGS_CXX}" CACHE INTERNAL "additional c++ link flags")
 set(LD_LLD "${LD_LLD}" CACHE INTERNAL "${LD_LLD} as linker" FORCE)
+set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # -Xclang is required because c/c++ flags is passed to linker and not recognized by linker(-O1/2 is ok, -Os/z is not)
+set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)

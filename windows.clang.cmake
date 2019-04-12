@@ -258,3 +258,7 @@ set(CMAKE_RC_COMPLIER llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORC
 set(CMAKE_GENERATOR_RC llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 # Allow clang-cl to work with macOS paths.
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/override.windows.clang.cmake")
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
+  set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
+  set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
+endif()
