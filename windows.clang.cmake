@@ -112,6 +112,9 @@ if(CMAKE_C_COMPILER)
     set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
     message("CMAKE_LINKER:${CMAKE_LINKER}")
   endif()
+  if(NOT CLANG_EXE)
+    string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "clang\\1${_EXE}" CLANG_EXE "${CMAKE_C_COMPILER}")
+  endif()
 else()
   set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "")
   set(CMAKE_LINKER lld-link CACHE FILEPATH "")
@@ -256,11 +259,22 @@ set(CMAKE_SHARED_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_C_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 
-set(CMAKE_RC_COMPILER_INIT llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
-set(CMAKE_RC_COMPLIER llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
-set(CMAKE_GENERATOR_RC llvm-rc CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
-# Allow clang-cl to work with macOS paths.
-set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/override.windows.clang.cmake")
+execute_process(
+  COMMAND ${CLANG_EXE} -print-prog-name=llvm-rc
+  OUTPUT_VARIABLE LLVM_RC
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+execute_process(
+  COMMAND ${CLANG_EXE} -print-prog-name=llvm-mt
+  OUTPUT_VARIABLE LLVM_MT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# rc rule: void cmNinjaTargetGenerator::WriteCompileRule(const std::string& lang)
+# FIXME: ninja project requires cmcldeps which exists only on windows
+set(CMAKE_RC_COMPILER_INIT ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+set(CMAKE_RC_COMPLIER ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+set(CMAKE_GENERATOR_RC ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
   set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
   set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
@@ -268,3 +282,5 @@ endif()
 if(WINSDK_ARCH STREQUAL "arm")
   set(CMAKE_TRY_COMPILE_CONFIGURATION Release) # default is debug, /Zi error for arm
 endif()
+# Allow clang-cl to work with macOS paths.
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/override.windows.clang.cmake")

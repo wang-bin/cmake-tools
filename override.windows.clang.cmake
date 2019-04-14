@@ -7,3 +7,6 @@
 # up, so we can just modify them instead of duplicating them entirely.
 string(REPLACE "-c <SOURCE>" "-c -- <SOURCE>" CMAKE_C_COMPILE_OBJECT "${CMAKE_C_COMPILE_OBJECT}")
 string(REPLACE "-c <SOURCE>" "-c -- <SOURCE>" CMAKE_CXX_COMPILE_OBJECT "${CMAKE_CXX_COMPILE_OBJECT}")
+# why not CMAKE_RC_FLAGS_INIT out?
+string(REPLACE " /D" " -D" CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS_INIT}")
+string(REPLACE " /D" " -D" CMAKE_RC_FLAGS_DEBUG "${CMAKE_RC_FLAGS_DEBUG_INIT}")
