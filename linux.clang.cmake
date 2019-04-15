@@ -38,11 +38,16 @@ if(NOT CMAKE_C_COMPILER)
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
-  if(CMAKE_C_COMPILER)
+endif()
+
+if(CMAKE_C_COMPILER)
+  if(NOT CMAKE_CXX_COMPILER)
     string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++\\1" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     if(NOT EXISTS "${CMAKE_CXX_COMPILER}") # homebrew, clang-6.0 but clang++ has no suffix
       string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     endif()
+  endif()
+    if(NOT LD_LLD)
     string(REGEX REPLACE ".*clang(|-[0-9]+[\\.0]*)$" "lld\\1" LD_LLD "${CMAKE_C_COMPILER}")
     execute_process(
       COMMAND ${CMAKE_C_COMPILER} -print-prog-name=${LD_LLD}
@@ -52,11 +57,11 @@ if(NOT CMAKE_C_COMPILER)
     if(NOT EXISTS ${LD_LLD_PATH}) # llvm on macOS(via brew) has lld but not lld-?
       set(LD_LLD lld)
     endif()
-  else()
-    set(CMAKE_C_COMPILER clang)
-    set(CMAKE_CXX_COMPILER clang++)
-    set(LD_LLD lld)
   endif()
+else()
+  set(CMAKE_C_COMPILER clang)
+  set(CMAKE_CXX_COMPILER clang++)
+  set(LD_LLD lld)
 endif()
 
 # llvm-ranlib is for bitcode. but seems works for others. "llvm-ar -s" should be better
