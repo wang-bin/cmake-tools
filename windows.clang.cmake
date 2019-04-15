@@ -247,6 +247,11 @@ endif()
 string(REPLACE ";" " " COMPILE_FLAGS "${COMPILE_FLAGS}")
 set(CMAKE_C_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
+# -Oz + /O1 is minimal size. "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
+  set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
+  set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
+endif()
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${LINK_FLAGS} ${EXE_LFLAGS}" CACHE STRING "" FORCE)
@@ -275,10 +280,6 @@ set(CMAKE_RC_COMPILER_INIT ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm 
 set(CMAKE_RC_COMPLIER ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_GENERATOR_RC ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 
-if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
-  set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
-  set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
-endif()
 if(WINSDK_ARCH STREQUAL "arm")
   set(CMAKE_TRY_COMPILE_CONFIGURATION Release) # default is debug, /Zi error for arm
 endif()
