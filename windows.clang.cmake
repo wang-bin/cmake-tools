@@ -275,7 +275,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 # rc rule: void cmNinjaTargetGenerator::WriteCompileRule(const std::string& lang)
-# FIXME: ninja project requires cmcldeps which exists only on windows
 set(CMAKE_RC_COMPILER_INIT ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_RC_COMPLIER ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_GENERATOR_RC ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
