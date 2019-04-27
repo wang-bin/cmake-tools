@@ -6,7 +6,7 @@
 # Copyright (c) 2018-2019, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
-# can not use clang --target=${ARCH}-none-windows-msvc19.0 because cmake will test msvc flags
+# can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
 # ref: https://github.com/llvm-mirror/llvm/blob/master/cmake/platforms/WinMsvc.cmake
 
 # vars:
@@ -17,13 +17,11 @@
 # when cross building on a case sensitive filesystem, symbolic links for libs and vfs overlay for headers are required.
 # You can download winsdk containing scripts to generate links and vfs overlay from: https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
-# WARNING: rc is required for win host build
 
-# as: clang -target armv7-win32-gnu
-# /bin/link will be selected by cmake
+# TODO: mingw abi --target=${arch}-w64-mingw32/windows-gnu
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
-option(USE_CLANG_CL "use clang-cl, same as clang --driver-mode=cl" ON)
+option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++. set to libc++ path including include and lib dirs to enable" OFF)
 option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
@@ -226,7 +224,7 @@ set(VSCMD_VER $ENV{VSCMD_VER})
 if(NOT VSCMD_VER)
   list(APPEND LINK_FLAGS
     # Prevent CMake from attempting to invoke mt.exe. It only recognizes the slashed form and not the dashed form.
-    /manifest:no # why -manifest:no results in rc error?  TODO: check mt and rc?
+    /manifest:no
     )
 endif()
 
@@ -247,10 +245,10 @@ endif()
 string(REPLACE ";" " " COMPILE_FLAGS "${COMPILE_FLAGS}")
 set(CMAKE_C_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
-# -Oz + /O1 is minimal size. "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
+# -Oz + /O1 is minimal size, but may generate wrong code(i386 crash). "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
-  set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
-  set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
+  set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG") # fatal error: error in backend: .seh_ directive must appear within an active frame
+  set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG")
 endif()
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
