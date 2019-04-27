@@ -18,7 +18,7 @@
 # You can download winsdk containing scripts to generate links and vfs overlay from: https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
 
-# TODO: mingw abi --target=${arch}-w64-mingw32/windows-gnu
+# TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
@@ -179,7 +179,7 @@ if(USE_LIBCXX)
   list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
 endif()
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
-    --target=${TRIPLE_ARCH}-windows-msvc
+    --target=${TRIPLE_ARCH}-pc-windows-msvc
     #-fms-compatibility-version=19.15
     #-Werror=unknown-argument
     #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
