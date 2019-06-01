@@ -82,6 +82,7 @@ set(APPLE TRUE)
 set(IOS TRUE)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
+#set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY) # FIXME: EXECUTABLE results in errors(including compiler tests), STATIC_LIBRARY always works for link flags
 
 execute_process(COMMAND xcodebuild -version
   OUTPUT_VARIABLE XCODE_VERSION
@@ -204,9 +205,9 @@ macro(set_xarch_flags arch)
     if("${arch}" MATCHES "armv7")
       # iOS < 11.0: c++17 armv7 aligned allocation error, arm64 cc1 default is -faligned-alloc-unavailable
       if(IOS_MULTI)
-        set(XARCH_CFLAGS "${XARCH_CFLAGS} -Xarch_${arch} -fno-aligned-allocation")
+        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Xarch_${arch};-fno-aligned-allocation>")
       else()
-        set(XARCH_CFLAGS "${XARCH_CFLAGS} -fno-aligned-allocation")
+        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fno-aligned-allocation>")
       endif()
     endif()
   else()
