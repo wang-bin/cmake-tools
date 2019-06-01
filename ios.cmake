@@ -115,6 +115,9 @@ if(NOT DEFINED IOS_UNIVERSAL)
   if(NOT DEFINED IOS_UNIVERSAL)
     set(IOS_UNIVERSAL FALSE)
   endif()
+  if(IOS_ARCH MATCHES ";")
+    set(IOS_MULTI 1)
+  endif()
 endif()
 
 if(NOT DEFINED IOS_BITCODE) # check xcode/clang version? since xcode 7
@@ -198,6 +201,14 @@ macro(set_xarch_flags arch)
     if("${arch}" MATCHES "arm64" AND IOS_DEPLOYMENT_TARGET VERSION_LESS 7.0)
       set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=7.0)
     endif()
+    if("${arch}" MATCHES "armv7")
+      # iOS < 11.0: c++17 armv7 aligned allocation error, arm64 cc1 default is -faligned-alloc-unavailable
+      if(IOS_MULTI)
+        set(XARCH_CFLAGS "${XARCH_CFLAGS} -Xarch_${arch} -faligned-allocation")
+      else()
+        set(XARCH_CFLAGS "${XARCH_CFLAGS} -faligned-allocation")
+      endif()
+    endif()
   else()
     set(XARCH_SDK iphonesimulator)
     set(XARCH_OS iphonesimulator)
@@ -214,7 +225,7 @@ macro(set_xarch_flags arch)
       ERROR_QUIET
       OUTPUT_STRIP_TRAILING_WHITESPACE)
   message(STATUS "Using SDK: ${XARCH_SYSROOT} for platform: ${XARCH_SDK} ${arch}")
-  if (IOS_UNIVERSAL)
+  if (IOS_MULTI)
     # -arch ${arch} : active the arch. CMAKE_OSX_ARCHITECTURES also adds the flags, so not necessary if CMAKE_OSX_ARCHITECTURES is set
     set(XARCH_CFLAGS "${XARCH_CFLAGS} -arch ${arch} -Xarch_${arch} ${XARCH_VERSION_FLAGS} -Xarch_${arch} -isysroot${XARCH_SYSROOT}")
     set(XARCH_LFLAGS "${XARCH_LFLAGS} -arch ${arch} -Xarch_${arch} ${XARCH_VERSION_FLAGS} -Xarch_${arch} -Wl,-syslibroot,${XARCH_SYSROOT}")
@@ -247,6 +258,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   IOS_DEVICE
   IOS_SIMULATOR
   IOS_SIMULATOR64
+  IOS_MULTI
   IOS_SDK
 )
 
@@ -291,7 +303,7 @@ set(CMAKE_CXX_FLAGS "${XARCH_CFLAGS} ${BITCODE_FLAGS} ${CXX_FLAGS} -fobjc-abi-ve
 set(CMAKE_FIND_ROOT_PATH 
   ${IOS_SDK_PATH}
   ${CMAKE_PREFIX_PATH}
-  CACHE string  "iOS find search path root" FORCE)
+  CACHE STRING  "iOS find search path root" FORCE)
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH) # cmake 3.10 can not find ninja if ONLY
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
