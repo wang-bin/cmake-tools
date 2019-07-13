@@ -1,6 +1,6 @@
 ## Windows Cross Build via Clang-CL + LLD
 
-toolchain file: win.clang.cmake
+toolchain file: windows.clang.cmake
 
 MSVC ABI compatible. Supports x86, x64, arm64(clang-8+).
 

@@ -24,7 +24,7 @@ endif()
 # Add a list of flags to 'CMAKE_C_FLAGS'.
 macro(add_c_flags)
   foreach(f ${ARGN})
-    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} ${f}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${f}")
   endforeach()
 endmacro()
 
@@ -32,7 +32,7 @@ endmacro()
 # 'CMAKE_C_FLAGS'
 macro(add_c_flags_if condition)
   if (${condition})
-    add_cxx_flags(${ARGN})
+    add_c_flags(${ARGN})
   endif()
 endmacro()
 
