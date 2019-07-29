@@ -152,7 +152,7 @@ if (NOT DEFINED IOS_SDK_PATH)
     ERROR_QUIET
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
-if (NOT DEFINED IOS_SDK_VERSION)
+if(NOT DEFINED IOS_SDK_VERSION)
   execute_process(COMMAND xcrun -sdk ${IOS_SDK} --show-sdk-version
     OUTPUT_VARIABLE IOS_SDK_VERSION
     ERROR_QUIET
@@ -160,7 +160,9 @@ if (NOT DEFINED IOS_SDK_VERSION)
 endif()
 # Specify minimum version of deployment target.
 # Unless specified, the latest SDK version is used by default.
-set(IOS_DEPLOYMENT_TARGET "${IOS_SDK_VERSION}" CACHE STRING "Minimum iOS version to build for." )
+if(NOT DEFINED IOS_DEPLOYMENT_TARGET)
+  set(IOS_DEPLOYMENT_TARGET "${IOS_SDK_VERSION}" CACHE STRING "Minimum iOS version to build for." )
+endif()
 message(STATUS "Building for minimum iOS version: ${IOS_DEPLOYMENT_TARGET} (SDK version: ${IOS_SDK_VERSION})")
 set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "${IOS_DEPLOYMENT_TARGET}")
 
@@ -204,7 +206,7 @@ macro(set_xarch_flags arch)
     endif()
     if("${arch}" MATCHES "armv7")
       if(NOT IOS_DEPLOYMENT_TARGET VERSION_LESS 11.0)
-        message("iOS 10 is the maximum deployment target for 32-bit targets")
+        message("IOS_DEPLOYMENT_TARGET=${IOS_DEPLOYMENT_TARGET} is invalid. iOS 10 is the maximum deployment target for 32-bit targets")
         set(XARCH_VERSION_FLAGS -m${XARCH_OS}-version-min=10.0)
       endif()
       # iOS < 11.0: c++17 armv7 aligned allocation error, arm64 cc1 default is -faligned-alloc-unavailable
@@ -265,6 +267,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   IOS_SIMULATOR64
   IOS_MULTI
   IOS_SDK
+  IOS_DEPLOYMENT_TARGET
 )
 
 # Force unset of OS X-specific deployment target (otherwise autopopulated),
