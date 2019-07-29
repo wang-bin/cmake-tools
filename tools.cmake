@@ -13,7 +13,7 @@
 # TODO: pch, auto add target dep libs dir to rpath-link paths. rc file
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
-# clang/gcc: -fms-extensions
+# llvm-objcopy --weaken-symbol
 # windres, llvm-rc, llvm-mt, mt, exe/dll manifest
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
@@ -529,16 +529,12 @@ function(mkdsym tgt)
   # TODO: apple support
   if(CMAKE_OBJCOPY)
     if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
-      #add_custom_command(TARGET ${tgt} POST_BUILD
-      #  COMMAND ${CMAKE_OBJCOPY} -only-keep=debug* $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
-      #  COMMAND ${CMAKE_OBJCOPY} -strip-debug -add-section=.gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
-      #  )
-    else()
-      add_custom_command(TARGET ${tgt} POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym
-        COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
-        )
+      set(KEEP_OPT_EXTRA -strip-sections)
     endif()
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND ${CMAKE_OBJCOPY} ${KEEP_OPT_EXTRA} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym # --only-keep-debug is .eh_frame section?
+      COMMAND ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded --discard-all --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dsym $<TARGET_FILE:${tgt}>
+      )
     if(CMAKE_VERSION VERSION_LESS 3.0)
       get_property(tgt_path TARGET ${tgt} PROPERTY LOCATION) #cmake > 2.8.12: CMP0026
       # can not use wildcard "${tgt_path}*.dsym"
@@ -738,3 +734,8 @@ function(target_sources tgt)
   cmake_parse_arguments(TGT_SRC "${options}" "" "" ${ARGN})
   set_property(TARGET ${tgt} APPEND PROPERTY SOURCES ${TGT_SRC_UNPARSED_ARGUMENTS})
 endfunction(target_sources)
+
+if(NOT CMAKE_VERSION VERSION_LESS 3.13)
+  return()
+endif()
+#function(target_link_directories tgt)
