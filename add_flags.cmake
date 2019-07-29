@@ -16,10 +16,20 @@ macro(mangle_name str output)
 endmacro()
 
 if(MSVC)
-  set(WERROR "/WX") # FIXME: why -WX does not work?
+  set(WERROR "/W4 /WX") # FIXME: why -WX does not work?
 else()
-  set(WERROR "-Werror")
+  set(WERROR "-Wall -Wextra -Wconversion -pedantic -Wfatal-errors -Werror")
 endif()
+
+function(add_compile_options_if_supported)
+  foreach(flag ${ARGN})
+    mangle_name("${flag}" flagname)
+    check_cxx_compiler_flag("${WERROR} ${flag}" "SUPPORTS_${flagname}_FLAG") # c,c++
+    if(${SUPPORTS_${flagname}_FLAG})
+      add_compile_options(${flag})
+    endif()
+  endforeach()
+endfunction()
 
 # Add a list of flags to 'CMAKE_C_FLAGS'.
 macro(add_c_flags)

@@ -212,6 +212,7 @@ endif()
 if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
 endif()
+add_compile_options_if_supported(-JMC)
 
 check_c_compiler_flag(-Wunused HAVE_WUNUSED)
 if(HAVE_WUNUSED)
@@ -390,10 +391,10 @@ endif()
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
 is_link_flag_supported("-Wl,--gc-sections" GC_SECTIONS) # FIXME: can not be used with -r
 if(GC_SECTIONS)
-  add_c_flags_if_supported("-ffunction-sections") # check cc, mac support it but has no effect
+  add_compile_options_if_supported("-ffunction-sections") # check cc, mac support it but has no effect
   check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
   if(NOT WIN32) # mingw gcc will increase size
-    add_c_flags_if_supported(-fdata-sections)
+    add_compile_options_if_supported(-fdata-sections)
   endif()
   add_link_flags("-Wl,--gc-sections")
 endif()
