@@ -19,6 +19,7 @@
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
 
 # TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
+# TODO: msvc abi in gnu style: https://cmake.org/cmake/help/v3.15/release/3.15.html#compilers
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
@@ -26,6 +27,7 @@ option(USE_LIBCXX "use libc++ instead of libstdc++. set to libc++ path including
 option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
 option(ONECORE "build with oncore" OFF)
+option(MIN_SIZE "build minimal size with optimizations enabled" ON)
 
 # Export configurable variables for the try_compile() command. Or set env var like llvm
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
@@ -183,6 +185,7 @@ set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     #-fms-compatibility-version=19.15
     #-Werror=unknown-argument
     #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
+    -Zc:inline
     )
 list(APPEND LINK_FLAGS
     -incremental:no # conflict with -opt:ref
@@ -228,8 +231,8 @@ if(NOT VSCMD_VER)
     )
 endif()
 
+list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
-  list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE)
   if(NOT WINSDK_ARCH STREQUAL "arm") # TODO: -EHsc internal error for arm
     list(APPEND COMPILE_FLAGS -EHsc)
   endif()
@@ -247,8 +250,13 @@ set(CMAKE_C_FLAGS "${COMPILE_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
 # -Oz + /O1 is minimal size, but may generate wrong code(i386 crash). "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
-  set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG") # fatal error: error in backend: .seh_ directive must appear within an active frame
-  set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG")
+  if(MIN_SIZE)
+    set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
+    set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
+  else()
+    set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG") # fatal error: error in backend: .seh_ directive must appear within an active frame
+    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG")
+  endif()
 endif()
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
