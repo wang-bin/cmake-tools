@@ -180,6 +180,8 @@ if(USE_LIBCXX)
   set(CXX_FLAGS "${CXX_FLAGS} -I${USE_LIBCXX}/include/c++/v1")
   list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
 endif()
+# https://bugs.llvm.org/show_bug.cgi?id=42843 # <type_traits> clang-cl-9 lld-link/link: error: duplicate symbol: bool const std::_Is_integral<bool> in a.obj and in b.obj
+# CMAKE_CXX_COMPILER_VERSION is not detected in toolchain file
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-pc-windows-msvc
     #-fms-compatibility-version=19.15
@@ -188,10 +190,10 @@ set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     -Zc:inline
     )
 list(APPEND LINK_FLAGS
-    -incremental:no # conflict with -opt:ref
     -opt:ref,icf,lbr # turned on by default in release mode (vc link.exe, not lld-link?)
     ${ONECORE_LIB}
     )
+link_libraries(-incremental:no) # conflict with -opt:ref. /INCREMENTAL is append after LINK_FLAGS by cmake
 set(OPT_REF_SET 1)
 
 if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools like rc and mt exists
