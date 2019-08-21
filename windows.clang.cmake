@@ -18,6 +18,7 @@
 # You can download winsdk containing scripts to generate links and vfs overlay from: https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download
 # msvc sdk: https://sourceforge.net/projects/avbuild/files/dep/msvcrt-dev.7z/download
 
+# TODO: CMakeFindBinUtils.cmake find ar, rc lld etc.?
 # TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
 # TODO: msvc abi in gnu style: https://cmake.org/cmake/help/v3.15/release/3.15.html#compilers
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
@@ -179,6 +180,10 @@ if(USE_LIBCXX)
   add_definitions(-D__WRL_ASSERT__=assert) # avoid including vcruntime_new.h to fix conflicts(assume libc++ is built with LIBCXX_NO_VCRUNTIME)
   set(CXX_FLAGS "${CXX_FLAGS} -I${USE_LIBCXX}/include/c++/v1")
   list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
+endif()
+if(WINDOWS_DESKTOP AND WINSDK_ARCH MATCHES "arm")
+  add_definitions(-D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE=1)
+  set(_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE_SET 1)
 endif()
 # https://bugs.llvm.org/show_bug.cgi?id=42843 # <type_traits> clang-cl-9 lld-link/link: error: duplicate symbol: bool const std::_Is_integral<bool> in a.obj and in b.obj
 # CMAKE_CXX_COMPILER_VERSION is not detected in toolchain file
