@@ -132,6 +132,7 @@ if(USE_LIBCXX)
   # old libc + stdc++ abi: disable thread_local, stdc++(g++8.0) does not use __cxa_thread_atexit_impl as weak symbol, so can not run on old glibc runtime
   file(GLOB_RECURSE LIBCXX_SO "${CMAKE_SYSROOT}/usr/lib/*libc++.so.1")
   if(LIBCXX_SO)
+    list(GET LIBCXX_SO 0 LIBCXX_SO)
     execute_process(
       COMMAND ${READELF} -needed-libs ${LIBCXX_SO}
       OUTPUT_VARIABLE LIBCXX_NEEDED
@@ -150,7 +151,8 @@ if(USE_LIBCXX)
           OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         string(REGEX MATCH "WEAK [A-Z ]* __cxa_thread_atexit_impl" WEAK__cxa_thread_atexit_impl "${LIBCXXABI_SYMBOLS}")
-        if(NOT WEAK__cxa_thread_atexit_impl)
+        string(REGEX MATCH "GLOBAL [A-Z ]* __cxa_thread_atexit_impl" __cxa_thread_atexit_impl "${LIBCXXABI_SYMBOLS}") # UND __cxa_thread_atexit_impl@GLIBC_2.18
+        if(NOT WEAK__cxa_thread_atexit_impl AND NOT __cxa_thread_atexit_impl)
           message("libc++abi in build environment is too old to support thread_local on old libc runtime")
           #set(USE_STD_TLS OFF)
         endif()
