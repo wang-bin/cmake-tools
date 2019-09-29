@@ -34,7 +34,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 )
 
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-9 clang-8 clang-7 clang-6.0 clang-5.0 clang-4.0 clang
+  find_program(CMAKE_C_COMPILER clang-10 clang-9 clang-8 clang-7 clang-6.0 clang-5.0 clang-4.0 clang
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
