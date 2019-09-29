@@ -108,6 +108,9 @@ if(CMAKE_C_COMPILER)
   if(CMAKE_HOST_WIN32)
     set(_EXE .exe)
   endif()
+  if(NOT LLVM_CONFIG) # TODO: move to llvm.cmake
+    string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "llvm-config${_EXE}" LLVM_CONFIG "${CMAKE_C_COMPILER}")
+  endif()
   if(NOT CMAKE_LINKER)
     string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "lld-link\\1${_EXE}" LLD_LINK "${CMAKE_C_COMPILER}")
     set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
@@ -121,6 +124,13 @@ else()
   set(CMAKE_LINKER lld-link CACHE FILEPATH "")
 endif()
 set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER} CACHE FILEPATH "")
+if(EXISTS ${LLVM_CONFIG})
+  execute_process(
+    COMMAND ${LLVM_CONFIG} --bindir
+    OUTPUT_VARIABLE LLVM_BIN
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
 
 if(NOT CMAKE_SYSTEM_PROCESSOR)
   message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
@@ -207,7 +217,7 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
   endif()
   if(case_sensitive_fs)
     if(NOT EXISTS "${WINSDK_DIR}/vfs.yaml")
-      message(SEND_ERROR "can not find vfs.yaml. you can use winsdk from https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download")
+      message(SEND_ERROR "can not find vfs.yaml. you can use winsdk from https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download then run mkvfs.sh and lowercase.sh")
     endif()
     list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_DIR}/vfs.yaml")
   endif()
@@ -277,16 +287,21 @@ set(CMAKE_SHARED_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_C_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 
-execute_process(
-  COMMAND ${CLANG_EXE} -print-prog-name=llvm-rc
-  OUTPUT_VARIABLE LLVM_RC
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(
-  COMMAND ${CLANG_EXE} -print-prog-name=llvm-mt
-  OUTPUT_VARIABLE LLVM_MT
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+if(EXISTS ${LLVM_BIN})
+  set(LLVM_RC ${LLVM_BIN}/llvm-rc${_EXE})
+  set(LLVM_MT ${LLVM_BIN}/llvm-mt${_EXE})
+else()
+  execute_process(
+    COMMAND ${CLANG_EXE} -print-prog-name=llvm-rc
+    OUTPUT_VARIABLE LLVM_RC
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND ${CLANG_EXE} -print-prog-name=llvm-mt
+    OUTPUT_VARIABLE LLVM_MT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
 # rc rule: void cmNinjaTargetGenerator::WriteCompileRule(const std::string& lang)
 set(CMAKE_RC_COMPILER_INIT ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_RC_COMPLIER ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
