@@ -28,7 +28,7 @@ option(USE_LIBCXX "use libc++ instead of libstdc++. set to libc++ path including
 option(UWP "build for uwp" OFF)
 option(PHONE "build for phone" OFF)
 option(ONECORE "build with oncore" OFF)
-option(MIN_SIZE "build minimal size with optimizations enabled" ON)
+option(MIN_SIZE "build minimal size with optimizations enabled" ON) # ANGLE x86_32 crash(upload texture)
 
 # Export configurable variables for the try_compile() command. Or set env var like llvm
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
@@ -268,11 +268,17 @@ set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
 # -Oz + /O1 is minimal size, but may generate wrong code(i386 crash). "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
   if(MIN_SIZE)
-    set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # fatal error: error in backend: .seh_ directive must appear within an active frame
+    set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # llvm8 fatal error: error in backend: .seh_ directive must appear within an active frame
     set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
   else()
-    set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG") # fatal error: error in backend: .seh_ directive must appear within an active frame
-    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -MD -Ob1 -DNDEBUG")
+    set(_CRT_FLAG_MultiThreaded -MT)
+    set(_CRT_FLAG_MultiThreadedDLL -MD)
+    set(_CRT_FLAG_MultiThreadedDebug -MTd)
+    set(_CRT_FLAG_MultiThreadedDebugDLL -MDd)
+    set(_CRT_FLAG_ -MD)
+    set(_CRT_FLAG ${_CRT_FLAG_${CMAKE_MSVC_RUNTIME_LIBRARY}})
+    set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -Ob1 -DNDEBUG ${_CRT_FLAG}") # llvm8 fatal error: error in backend: .seh_ directive must appear within an active frame
+    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -Ob1 -DNDEBUG ${_CRT_FLAG}")
   endif()
 endif()
 
