@@ -211,15 +211,82 @@ list(APPEND LINK_FLAGS
 link_libraries(-incremental:no) # conflict with -opt:ref. /INCREMENTAL is append after LINK_FLAGS by cmake
 set(OPT_REF_SET 1)
 
+# generate_winsdk_vfs_overlay, generate_winsdk_lib_symlinks from llvm project https://github.com/llvm/llvm-project/blob/master/llvm/cmake/platforms/WinMsvc.cmake#L106
+function(generate_winsdk_vfs_overlay winsdk_include_dir output_path)
+  set(include_dirs)
+  file(GLOB_RECURSE entries LIST_DIRECTORIES true "${winsdk_include_dir}/*")
+  foreach(entry ${entries})
+    if(IS_DIRECTORY "${entry}")
+      list(APPEND include_dirs "${entry}")
+    endif()
+  endforeach()
+
+  file(WRITE "${output_path}"  "version: 0\n")
+  file(APPEND "${output_path}" "case-sensitive: false\n")
+  file(APPEND "${output_path}" "roots:\n")
+
+  foreach(dir ${include_dirs})
+    file(GLOB headers RELATIVE "${dir}" "${dir}/*.h")
+    if(NOT headers)
+      continue()
+    endif()
+
+    file(APPEND "${output_path}" "  - name: \"${dir}\"\n")
+    file(APPEND "${output_path}" "    type: directory\n")
+    file(APPEND "${output_path}" "    contents:\n")
+
+    foreach(header ${headers})
+      file(APPEND "${output_path}" "      - name: \"${header}\"\n")
+      file(APPEND "${output_path}" "        type: file\n")
+      file(APPEND "${output_path}" "        external-contents: \"${dir}/${header}\"\n")
+    endforeach()
+  endforeach()
+endfunction()
+
+function(generate_winsdk_lib_symlinks winsdk_um_lib_dir output_dir)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_dir}")
+  file(GLOB libraries RELATIVE "${winsdk_um_lib_dir}" "${winsdk_um_lib_dir}/*")
+  foreach(library ${libraries})
+    string(TOLOWER "${library}" all_lowercase_symlink_name)
+    if(NOT library STREQUAL all_lowercase_symlink_name)
+      execute_process(COMMAND "${CMAKE_COMMAND}"
+                              -E create_symlink
+                              "${winsdk_um_lib_dir}/${library}"
+                              "${output_dir}/${all_lowercase_symlink_name}")
+    endif()
+
+    get_filename_component(name_we "${library}" NAME_WE)
+    get_filename_component(ext "${library}" EXT)
+    string(TOLOWER "${ext}" lowercase_ext)
+    set(lowercase_ext_symlink_name "${name_we}${lowercase_ext}")
+    if(NOT library STREQUAL lowercase_ext_symlink_name AND
+       NOT all_lowercase_symlink_name STREQUAL lowercase_ext_symlink_name)
+      execute_process(COMMAND "${CMAKE_COMMAND}"
+                              -E create_symlink
+                              "${winsdk_um_lib_dir}/${library}"
+                              "${output_dir}/${lowercase_ext_symlink_name}")
+    endif()
+  endforeach()
+endfunction()
+
 if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools like rc and mt exists
   if(NOT EXISTS "${WINSDK_INCLUDE}/um/WINDOWS.H")
     set(case_sensitive_fs TRUE)
   endif()
   if(case_sensitive_fs)
+    set(winsdk_vfs_overlay_path "${WINSDK_DIR}/vfs.yaml")
     if(NOT EXISTS "${WINSDK_DIR}/vfs.yaml")
-      message(SEND_ERROR "can not find vfs.yaml. you can use winsdk from https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download then run mkvfs.sh and lowercase.sh")
+      set(winsdk_vfs_overlay_path "${CMAKE_BINARY_DIR}/winsdk_vfs.yaml")
+      if(NOT EXISTS "${winsdk_vfs_overlay_path}")
+        message("can not find vfs.yaml in windows sdk, generating one. or you can use winsdk from https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download")
+        generate_winsdk_vfs_overlay("${WINSDK_INCLUDE}" "${winsdk_vfs_overlay_path}")
+        message("generating windows sdk lib symlinks...")
+        set(winsdk_lib_symlinks_dir "${CMAKE_BINARY_DIR}/winsdk_lib_symlinks")
+        generate_winsdk_lib_symlinks("${WINSDK_LIB}/um/${WINSDK_ARCH}" "${winsdk_lib_symlinks_dir}")
+        list(APPEND LINK_FLAGS -libpath:"${winsdk_lib_symlinks_dir}")
+      endif()
     endif()
-    list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_DIR}/vfs.yaml")
+    list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${winsdk_vfs_overlay_path}")
   endif()
 endif()
 
