@@ -14,7 +14,7 @@
 #-z nodlopen, --strip-lto-sections, -Wl,--allow-shlib-undefined
 # harden: https://github.com/opencv/opencv/commit/1961bb1857d5d3c9a7e196d52b0c7c459bc6e619
 # llvm-objcopy --weaken-symbol
-# windres, llvm-rc, llvm-mt, mt, exe/dll manifest
+# windres, llvm-mt, mt, exe/dll manifest
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
 # TODO: vc 1913+  "-Zc:__cplusplus -std:c++14" to correct __cplusplus. see qt msvc-version.conf. https://blogs.msdn.microsoft.com/vcblog/2018/04/09/msvc-now-correctly-reports-__cplusplus/
@@ -473,7 +473,9 @@ endif()
 
 
 if(SANITIZE)
-  add_compile_options(-fno-omit-frame-pointer -fsanitize=address,undefined)
+  # clang-cl: -Oy- = -fno-omit-frame-pointer -funwind-tables, -Oy = -fomit-frame-pointer -funwind-tables
+  # memory sanitize does not supports macOS. address and thread can not be used together
+  add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
 endif()
@@ -647,7 +649,7 @@ function(set_rpath)
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
-    list(APPEND RPATH_DIRS @executable_path/../Frameworks @loader_path @loader_path/lib @loader_path/../lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
+    list(APPEND RPATH_DIRS @loader_path @loader_path/lib @executable_path/../Frameworks @loader_path/../lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib") #. /usr/local/lib:$ORIGIN
