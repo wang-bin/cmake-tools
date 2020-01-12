@@ -16,7 +16,7 @@ macro(mangle_name str output)
 endmacro()
 
 if(MSVC)
-  set(WERROR "/W4 /WX") # FIXME: why -WX does not work?
+  set(WERROR "-W4 -WX") # FIXME: why -WX does not work? -W4 is not supported in link
 else()
   set(WERROR "-Wall -Wextra -Wconversion -pedantic -Wfatal-errors -Werror")
 endif()
@@ -86,6 +86,7 @@ macro(add_link_flags)
   foreach(f ${ARGN})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${f}")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${f}")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${f}")
   endforeach()
 endmacro()
 
