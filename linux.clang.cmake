@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2019, Wang Bin
+# Copyright (c) 2017-2020, Wang Bin
 #
 # clang + lld to cross build apps for linux
 #
@@ -34,7 +34,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 )
 
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-10 clang-9 clang-8 clang-7 clang-6.0 clang-5.0 clang-4.0 clang
+  find_program(CMAKE_C_COMPILER clang-11 clang-10 clang-9 clang-8 clang-7 clang-6.0 clang-5.0 clang-4.0 clang
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
@@ -197,7 +197,7 @@ else()
   set(LINUX_LD_FLAGS "${LINUX_LD_FLAGS} --build-id --sysroot=${CMAKE_SYSROOT}") # -s: strip
   macro(set_cc_clang lang)
     set(CMAKE_${lang}_LINK_EXECUTABLE
-        "<CMAKE_LINKER> -flavor gnu <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <LINK_LIBRARIES> <OBJECTS> -o <TARGET>")                
+        "<CMAKE_LINKER> -flavor gnu <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <LINK_LIBRARIES> <OBJECTS> -o <TARGET>")
     set(CMAKE_${lang}_CREATE_SHARED_LIBRARY
         "<CMAKE_LINKER> -flavor gnu <CMAKE_${lang}_LINK_FLAGS> <CMAKE_SHARED_LIBRARY_${lang}_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
     set(CMAKE_${lang}_CREATE_SHARED_MODULE
