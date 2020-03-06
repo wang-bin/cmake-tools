@@ -401,6 +401,7 @@ add_link_flags_if_supported(
   -dead_strip
   -Wl,--no-allow-shlib-undefined
   -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
+  -Wl,-z,defs # do not allow undefined symbols in shared library targets
   )
 
 if(STATIC_LIBGCC)
