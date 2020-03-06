@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2019, Wang Bin
+# Copyright (c) 2017-2020, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -51,11 +51,8 @@ include(CheckCXXCompilerFlag)
 include(${CMAKE_CURRENT_LIST_DIR}/add_flags.cmake NO_POLICY_SCOPE)
 
 # set CMAKE_SYSTEM_PROCESSOR, CMAKE_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
-# defines RPI_VC_DIR for use externally
-if(EXISTS ${CMAKE_SYSROOT}/opt/vc/include/bcm_host.h) # CMAKE_SYSROOT can be empty
-  set(RPI_SYSROOT ${CMAKE_SYSROOT})
-  set(RPI 1)
-else()
+# if host/cross gcc build has opt/vc in sysroot, assume it's for rpi, and defines RPI_VC_DIR for use externally
+if(NOT EXISTS ${RPI_VC_DIR})
   execute_process(
       COMMAND ${CMAKE_C_COMPILER} -print-sysroot  #clang does not support -print-sysroot
       OUTPUT_VARIABLE CC_SYSROOT
@@ -65,27 +62,16 @@ else()
   if(EXISTS ${CC_SYSROOT}/opt/vc/include/bcm_host.h)
     set(RPI_SYSROOT ${CC_SYSROOT})
     set(RPI 1)
-  endif()
-endif()
-if(RPI)
-  if(EXISTS /dev/vchiq)
-    message("Raspberry Pi host build")
-  else()
-    message("Raspberry Pi cross build")
-    set(CMAKE_CROSSCOMPILING TRUE)
-  endif()
-  #set(CMAKE_SYSTEM_PROCESSOR armv6)
-  set(OS rpi)
-  # unset os detected as host when cross compiling
-  unset(APPLE)
-  unset(WIN32)
-  add_definitions(-DOS_RPI)
-  if(NOT RPI_VC_DIR)
-    if(${RPI_SYSROOT} MATCHES ".*/$")
-      set(RPI_VC_DIR ${RPI_SYSROOT}opt/vc)
-    else()
-      set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
+    set(OS rpi)
+    set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
+    add_definitions(-DOS_RPI=1)
+    # unset os detected as host when cross compiling
+    unset(APPLE)
+    unset(WIN32)
+    if(NOT EXISTS /dev/vchiq)
+      set(CMAKE_CROSSCOMPILING TRUE)
     endif()
+    message("Raspberry Pi cross build: ${CMAKE_CROSSCOMPILING}")
   endif()
 endif()
 
