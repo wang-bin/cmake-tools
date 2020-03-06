@@ -471,7 +471,11 @@ endif()
 if(SANITIZE)
   # clang-cl: -Oy- = -fno-omit-frame-pointer -funwind-tables, -Oy = -fomit-frame-pointer -funwind-tables
   # memory sanitize does not supports macOS. address and thread can not be used together
-  add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined)
+  #add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined,integer,nullability)
+  #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
+  #set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
+  #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
+  #add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
   set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
@@ -532,7 +536,7 @@ function(mkdsym tgt)
   # TODO: apple support
   if(CMAKE_OBJCOPY)
     if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
-      set(KEEP_OPT_EXTRA -strip-sections)
+      set(KEEP_OPT_EXTRA --strip-sections)
     endif()
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND ${CMAKE_OBJCOPY} ${KEEP_OPT_EXTRA} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym # --only-keep-debug is .eh_frame section?
