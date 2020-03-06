@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2018, Wang Bin
+# Copyright (c) 2017-2020, Wang Bin
 #
 # clang + lld to cross build apps for linux sunxi. can be easily change to other target platforms
 #
@@ -25,7 +25,7 @@ endif()
 
 # flags for both compiler and linker
 # https://wiki.openwrt.org/doc/hardware/soc/soc.allwinner.sunxi
-set(LINUX_FLAGS "--target=arm-sunxi-linux-gnueabihf -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mthumb") #-mfpu=vfpv3-d16
+set(LINUX_FLAGS "-mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mthumb") #-mfpu=vfpv3-d16
 add_definitions(-DOS_SUNXI)
 
 if(EXISTS /dev/cedar_dev)

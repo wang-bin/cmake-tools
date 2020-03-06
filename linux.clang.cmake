@@ -9,7 +9,9 @@
 #
 # LINUX_FLAGS: flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ...
 # CMAKE_SYSTEM_PROCESSOR: REQUIRED
+# USE_CRT: gnu(default), musl
 # TODO: file(GLOB) only check for target arch, and no arch, e.g. /usr/lib/{$arch/,}libc++.so.1
+
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
 option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is built with none abi" OFF) # default value must be bool
@@ -18,11 +20,31 @@ option(USE_COMPILER_RT "use compiler-rt instead of libgcc as compiler runtime li
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
 option(USE_STDCXX "libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler" 0)
 
-if(NOT CMAKE_SYSTEM_PROCESSOR)
-  message("CMAKE_SYSTEM_PROCESSOR for target is not set. Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
-  set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
+if(NOT OS)
+  set(OS Linux)
 endif()
 set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be used, e.g. apple clang flags are added on macOS
+if(NOT CMAKE_SYSTEM_PROCESSOR)
+  message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i386,i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
+  set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
+endif()
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x.*64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
+  set(TRIPLE_ARCH x86_64)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "86")
+  set(TRIPLE_ARCH i386)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ar.*64")
+  set(TRIPLE_ARCH aarch64)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm") # arm.*hf?
+  set(TRIPLE_ARCH arm)
+  set(TRIPLE_ABI eabihf)
+endif()
+if(NOT USE_CRT) # can be gnu, musl
+  set(USE_CRT gnu)
+endif()
+set(TARGET_TRIPPLE ${TRIPLE_ARCH}-linux-${USE_CRT}${TRIPLE_ABI})
+set(LINUX_FLAGS "--target=${TARGET_TRIPPLE} ${LINUX_FLAGS}")
+
+set(CMAKE_LIBRARY_ARCHITECTURE ${TARGET_TRIPPLE}) # FIND_LIBRARY search subdir
 # "/usr/local/opt/llvm/bin/ld.lld" --sysroot=/Users/wangbin/dev/rpi/sysroot -pie -X --eh-frame-hdr -m armelf_linux_eabi -dynamic-linker /lib/ld-linux-armhf.so.3 -o test/audiodec /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/Scrt1.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crti.o /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtbeginS.o -L/Users/wangbin/dev/rpi/sysroot/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib --build-id --as-needed --gc-sections --enable-new-dtags -z origin "-rpath=\$ORIGIN" "-rpath=\$ORIGIN/lib" -rpath-link /Users/wangbin/dev/multimedia/mdk/external/lib/rpi/armv6 test/CMakeFiles/audiodec.dir/audiodec.cpp.o libmdk.so.0.1.0 -lc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtendS.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crtn.o
 
 # Export configurable variables for the try_compile() command. Or set env var like llvm
@@ -30,6 +52,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   CMAKE_SYSTEM_PROCESSOR
   CMAKE_C_COMPILER # find_program only once
   LINUX_FLAGS
+  #LINUX_SYSROOT
   LD_LLD
 )
 
@@ -47,7 +70,7 @@ if(CMAKE_C_COMPILER)
       string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     endif()
   endif()
-    if(NOT LD_LLD)
+  if(NOT LD_LLD)
     string(REGEX REPLACE ".*clang(|-[0-9]+[\\.0]*)$" "lld\\1" LD_LLD "${CMAKE_C_COMPILER}")
     execute_process(
       COMMAND ${CMAKE_C_COMPILER} -print-prog-name=${LD_LLD}
@@ -90,6 +113,7 @@ execute_process(
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 
 # Sysroot.
+#message("CMAKE_SYSROOT_COMPILE: ${CMAKE_SYSROOT_COMPILE}, ${CMAKE_CROSSCOMPILING}")
 if(EXISTS "${LINUX_SYSROOT}")
   set(CMAKE_SYSROOT ${LINUX_SYSROOT})
 # CMake 3.9 tries to use CMAKE_SYSROOT_COMPILE before it gets set from CMAKE_SYSROOT, which leads to using the system's /usr/include. Set this manually.
