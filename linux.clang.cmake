@@ -234,7 +234,7 @@ endif()
 # Set or retrieve the cached flags. Without these compiler probing may fail!
 
 set(CMAKE_AR         "${CMAKE_LLVM_AR}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} ar" FORCE)
-#set(CMAKE_OBJCOPY    "${CMAKE_LLVM_OBJCOPY}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} objcopy" FORCE)
+set(CMAKE_OBJCOPY    "${CMAKE_LLVM_OBJCOPY}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} objcopy" FORCE)
 set(CMAKE_C_FLAGS    "${LINUX_FLAGS}" CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c compiler flags" FORCE)
 set(CMAKE_CXX_FLAGS  "${LINUX_FLAGS} ${LINUX_FLAGS_CXX}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} c++ compiler/linker flags" FORCE)
 set(CMAKE_ASM_FLAGS  "${LINUX_FLAGS}"  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} asm compiler flags" FORCE)
