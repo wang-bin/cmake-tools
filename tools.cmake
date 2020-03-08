@@ -334,7 +334,9 @@ endif()
 
 
 if(MSVC)
-  add_compile_options(-guard:cf) #-d2guard4 -Wv:18 # fix latest angle crash
+# https://docs.microsoft.com/zh-cn/visualstudio/releasenotes/vs2015-rtm-vs#visual-c-performance-and-code-quality
+  add_compile_options(-guard:cf) #-d2guard4: legacy flag for cl(vs<2015) # fix latest angle crash
+  add_link_options(-guard:cf)
   if(NOT OPT_REF_SET)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref,icf,lbr")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -opt:ref,icf,lbr")
@@ -393,7 +395,7 @@ if(GC_SECTIONS)
   if(NOT WIN32) # mingw gcc will increase size
     add_compile_options_if_supported(-fdata-sections)
   endif()
-  add_link_flags("-Wl,--gc-sections")
+  add_link_options("-Wl,--gc-sections")
 endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 # TODO: gcc -fdce
@@ -406,7 +408,7 @@ add_link_flags_if_supported(
 
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
-  add_link_flags(-static-libgcc)
+  add_link_options(-static-libgcc)
 endif()
 
 # If parallel lto is not supported, fallback to single job lto
