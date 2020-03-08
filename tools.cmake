@@ -400,12 +400,13 @@ endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 # TODO: gcc -fdce
 add_link_flags_if_supported(
-  -dead_strip
   -Wl,--no-allow-shlib-undefined
   -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
   -Wl,-z,defs # do not allow undefined symbols in shared library targets
   )
-
+if(APPLE)
+  add_link_flags(-dead_strip)
+endif()
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
   add_link_options(-static-libgcc)

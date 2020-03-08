@@ -82,14 +82,18 @@ macro(add_cxx_flags_if_supported)
 endmacro()
 
 # Add a list of flags to 'CMAKE_SHARED_LINKER_FLAGS' and 'CMAKE_EXE_LINKER_FLAGS'.
+macro(add_link_flags)
+  foreach(f ${ARGN})
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${f}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${f}")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${f}")
+  endforeach()
+endmacro()
+
 # cmake 3.13:   add_link_options(), target_link_options
 if(CMAKE_VERSION VERSION_LESS 3.13)
   macro(add_link_options)
-    foreach(f ${ARGN})
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${f}")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${f}")
-      set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${f}")
-    endforeach()
+    add_link_flags(${ARGN})
   endmacro()
 endif()
 
