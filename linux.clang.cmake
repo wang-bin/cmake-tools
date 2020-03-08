@@ -10,7 +10,6 @@
 # LINUX_FLAGS: flags for both compiler and linker, e.g. --target=arm-rpi-linux-gnueabihf ...
 # CMAKE_SYSTEM_PROCESSOR: REQUIRED
 # USE_CRT: gnu(default), musl
-# TODO: file(GLOB) only check for target arch, and no arch, e.g. /usr/lib/{$arch/,}libc++.so.1
 
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
@@ -33,7 +32,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "ar.*64")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm") # arm.*hf?
   set(TRIPLE_ARCH arm)
   set(TRIPLE_ABI eabihf)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL AMD64)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "64")
   set(TRIPLE_ARCH x86_64)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "86")
   set(TRIPLE_ARCH i386)
@@ -120,11 +119,8 @@ if(EXISTS "${LINUX_SYSROOT}")
 # https://github.com/android-ndk/ndk/issues/467
   set(CMAKE_SYSROOT_COMPILE "${CMAKE_SYSROOT}")
 endif()
-file(GLOB_RECURSE PKGCONFIG_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/lib/*pkgconfig*") # pkgconfig is dir, so LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
-list(FILTER PKGCONFIG_DIRS INCLUDE REGEX "/pkgconfig")
-string(REPLACE ";" ":" PKGCONFIG_DIRS "${PKGCONFIG_DIRS}")
 if(CMAKE_CROSSCOMPILING) # default is true
-  set(ENV{PKG_CONFIG_PATH} "${CMAKE_SYSROOT}/usr/share/pkgconfig:${PKGCONFIG_DIRS}")
+  set(ENV{PKG_CONFIG_PATH} "${CMAKE_SYSROOT}/usr/share/pkgconfig:${CMAKE_SYSROOT}/usr/lib/${TARGET_TRIPPLE}/pkgconfig")
 endif()
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
@@ -154,9 +150,8 @@ if(USE_LIBCXX)
   # new/old libc + new libc++abi: use libc++abi tls/fallback
   # new libc + old libc++abi: can not ensure libc runtime thread_local support
   # old libc + stdc++ abi: disable thread_local, stdc++(g++8.0) does not use __cxa_thread_atexit_impl as weak symbol, so can not run on old glibc runtime
-  file(GLOB_RECURSE LIBCXX_SO "${CMAKE_SYSROOT}/usr/lib/*libc++.so.1")
-  if(LIBCXX_SO)
-    list(GET LIBCXX_SO 0 LIBCXX_SO)
+  set(LIBCXX_SO "${CMAKE_SYSROOT}/usr/lib/${TARGET_TRIPPLE}/libc++.so.1")
+  if(EXISTS ${LIBCXX_SO})
     execute_process(
       COMMAND ${READELF} -needed-libs ${LIBCXX_SO}
       OUTPUT_VARIABLE LIBCXX_NEEDED
@@ -167,8 +162,8 @@ if(USE_LIBCXX)
       #message("libc++ is not built with libc++abi. not safe to use thread_local on old libstdc++ runtime for libc++<7.0")
       #set(USE_STD_TLS OFF)
     else()
-      file(GLOB_RECURSE LIBCXXABI_SO "${CMAKE_SYSROOT}/usr/lib/*libc++abi.so.1") #LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
-      foreach(so IN ITEMS ${LIBCXXABI_SO})
+      set(LIBCXXABI_SO "${CMAKE_SYSROOT}/usr/lib/${TARGET_TRIPPLE}/libc++abi.so.1") #LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
+      if(EXISTS ${LIBCXXABI_SO})
         execute_process(
           COMMAND ${READELF} -symbols ${LIBCXXABI_SO}
           OUTPUT_VARIABLE LIBCXXABI_SYMBOLS
@@ -180,11 +175,10 @@ if(USE_LIBCXX)
           message("libc++abi in build environment is too old to support thread_local on old libc runtime")
           #set(USE_STD_TLS OFF)
         endif()
-        break()
-      endforeach()
+      endif()
     endif()
   endif()
-  file(GLOB_RECURSE LIBC_SO "${CMAKE_SYSROOT}/lib/*libc.so.6")
+  set(LIBC_SO "${CMAKE_SYSROOT}/lib/${TARGET_TRIPPLE}/libc.so.6")
   execute_process(
     COMMAND ${READELF} -symbols ${LIBC_SO}
     OUTPUT_VARIABLE LIBC_SYMBOLS
@@ -203,11 +197,9 @@ else() # gcc files can be found by clang
   if(NOT USE_STDCXX VERSION_LESS 4.8)
   # Selected GCC installation: always the last (greatest version), no way to change it
     add_compile_options(-nostdinc++)
-    file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++")
-    list(FILTER CXX_DIRS INCLUDE REGEX "/c\\+\\+$")
-    foreach(dir IN ITEMS ${CXX_DIRS})
-      add_compile_options("-cxx-isystem${dir}/${USE_STDCXX}") # no space after -cxx-isystem
-    endforeach()
+    #file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++") # c++ is dir, so LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
+    add_compile_options("-cxx-isystem${CMAKE_SYSROOT}/usr/include/c++/${USE_STDCXX}") # no space after -cxx-isystem
+    add_compile_options("-cxx-isystem${CMAKE_SYSROOT}/usr/include/${TARGET_TRIPPLE}/c++/${USE_STDCXX}") # no space after -cxx-isystem
   endif()
 endif()
 
