@@ -657,7 +657,7 @@ function(set_rpath)
     list(APPEND RPATH_DIRS @loader_path @loader_path/lib @executable_path/../Frameworks @loader_path/../lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
-    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib") #. /usr/local/lib:$ORIGIN
+    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
   endif()
   foreach(p ${RPATH_DIRS})
