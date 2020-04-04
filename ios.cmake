@@ -44,7 +44,7 @@
 ###################################################################################################################################
 # Updated by Wang Bin (wbsecg1@gmail.com) (support IOS_ARCH, IOS_BITCODE, IOS_EMBEDDED_FRAMEWORK)
 # The following variables control the behaviour of this toolchain:
-# IOS_ARCH: Architectures being compiled for. Multiple architectures are seperated by ";". It MUST be set.
+# IOS_ARCH: Architectures being compiled for. Multiple architectures are seperated by ";". It MUST be set. For CMake3.17 and later, armv7 can't be the first arch
 # IOS_DEPLOYMENT_TARGET=version: minimal target iOS version to run. Default is current sdk version.
 # IOS_BITCODE=1/0: Enable bitcode or not. Only iOS >= 6.0 device build can enable bitcode. Default is enabled.
 # IOS_EMBEDDED_FRAMEWORK=1/0: build as embedded framework for IOS_DEPLOYMENT_TARGET >= 8.0. Default is disabled and relocatable object is used.
@@ -75,6 +75,7 @@
 
 set(CMAKE_CROSSCOMPILING TRUE)    # stop recursion
 # Standard settings.
+#set(CMAKE_SYSTEM_NAME iOS) # cmake 3.17
 set(CMAKE_SYSTEM_NAME Darwin) # iOS is unknown to cmake. if use Darwin, macOS sdk sysroot will be set
 set(CMAKE_SYSTEM_VERSION ${IOS_SDK_VERSION})
 set(UNIX TRUE)
@@ -280,7 +281,11 @@ if(IOS_UNIVERSAL)
   if(CMAKE_GENERATOR MATCHES "Xcode")
     set(CMAKE_OSX_SYSROOT "${IOS_SDK}")
   else()
-    set(CMAKE_OSX_SYSROOT "" CACHE STRING "Must be empty for iOS universal builds." FORCE) # will add macOS sysroot for xcode
+    if(CMAKE_VERSION VERSION_LESS 3.17.0)
+      set(CMAKE_OSX_SYSROOT "" CACHE STRING "Must be empty for iOS universal builds." FORCE) # will add macOS sysroot for xcode
+    else()
+      set(CMAKE_OSX_SYSROOT "iphoneos;iphonesimulator" CACHE STRING "Must be empty for iOS universal builds." FORCE) # will add macOS sysroot for xcode
+    endif()
   endif()
 else()
   set(CMAKE_OSX_SYSROOT "${IOS_SDK}")
@@ -308,7 +313,7 @@ endif()
 set(CMAKE_C_FLAGS "${XARCH_CFLAGS} ${BITCODE_FLAGS} -fobjc-abi-version=2" CACHE INTERNAL "ios c compiler flags" FORCE) # -fobjc-arc
 set(CMAKE_CXX_FLAGS "${XARCH_CFLAGS} ${BITCODE_FLAGS} ${CXX_FLAGS} -fobjc-abi-version=2" CACHE INTERNAL "ios c compiler flags" FORCE) # -fobjc-arc
 #add_compile_options($<$<COMPILE_LANGUAGE:) #objc only flags
-set(CMAKE_FIND_ROOT_PATH 
+set(CMAKE_FIND_ROOT_PATH
   ${IOS_SDK_PATH}
   ${CMAKE_PREFIX_PATH}
   CACHE STRING  "iOS find search path root" FORCE)
