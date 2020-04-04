@@ -39,6 +39,7 @@ option(COVERAGE "Enable source based code coverage(gcc/clang)" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU
 option(NO_RTTI "Enable C++ rtti" ON)
 option(NO_EXCEPTIONS "Enable C++ exceptions" ON)
+option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -208,7 +209,9 @@ check_c_compiler_flag(-Wunused HAVE_WUNUSED)
 if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
-
+if(APPLE AND USE_ARC)
+  add_compile_options(-fobjc-arc)
+endif()
 # TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
 # TODO: test_lflags(var, flags), enable_lflags(flags)
 function(test_lflags var flags)
