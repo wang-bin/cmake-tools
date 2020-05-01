@@ -303,10 +303,6 @@ if(ANDROID)
 endif()
 
 # project independent dirs
-if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING AND EXISTS /usr/local/include)
-  include_directories(/usr/local/include)
-  list(APPEND EXTRA_LIB_DIR /usr/local/lib)
-endif()
 if(RPI)
   include_directories(${RPI_VC_DIR}/include)
   list(APPEND EXTRA_INCLUDE ${RPI_VC_DIR}/include)
@@ -539,7 +535,7 @@ function(mkdsym tgt)
     return()
   endif()
   # TODO: find objcopy in target tools (e.g. clang toolchain)
-  # TODO: apple support
+  # TODO: apple support dsymutil a -o a.dSYM
   if(CMAKE_OBJCOPY)
     if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
       set(KEEP_OPT_EXTRA --strip-sections)
@@ -663,7 +659,7 @@ function(set_rpath)
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
-    list(APPEND RPATH_DIRS @loader_path @loader_path/lib @executable_path/../Frameworks @loader_path/../lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
+    list(APPEND RPATH_DIRS @loader_path @loader_path/lib @executable_path/../Frameworks @loader_path/../lib /usr/local/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
