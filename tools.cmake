@@ -167,6 +167,7 @@ if(ARCH MATCHES 86)
 endif()
 
 if(APPLE)
+  #add_compile_options(-gdwarf-2)
   set(CMAKE_INSTALL_NAME_DIR "@rpath")
 endif()
 
@@ -534,11 +535,9 @@ function(mkdsym tgt)
   if(NOT TYPE STREQUAL SHARED_LIBRARY AND NOT TYPE STREQUAL MODULE_LIBRARY)
     return()
   endif()
-  # TODO: find objcopy in target tools (e.g. clang toolchain)
-  # TODO: apple support dsymutil a -o a.dSYM
   if(CMAKE_OBJCOPY)
     if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
-      set(KEEP_OPT_EXTRA --strip-sections)
+      #set(KEEP_OPT_EXTRA --strip-sections) # will leave an empty elf
     endif()
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND ${CMAKE_OBJCOPY} ${KEEP_OPT_EXTRA} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dsym # --only-keep-debug is .eh_frame section?
@@ -557,6 +556,11 @@ function(mkdsym tgt)
     else()
       install(FILES $<TARGET_FILE:${tgt}>.dsym DESTINATION lib)
     endif()
+  endif()
+  if(APPLE)
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
+      )
   endif()
   if(MSVC) # llvm-mingw can generate pdb too
     install(FILES $<TARGET_PDB_FILE:${tgt}> CONFIGURATIONS RelWithDebInfo Debug DESTINATION bin OPTIONAL) #COMPILE_PDB_OUTPUT_DIRECTORY and COMPILE_PDB_NAME for static
