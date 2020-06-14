@@ -204,7 +204,7 @@ endif()
 if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
 endif()
-add_compile_options_if_supported(-JMC)
+#add_compile_options_if_supported(-JMC) # debug only
 
 check_c_compiler_flag(-Wunused HAVE_WUNUSED)
 if(HAVE_WUNUSED)
@@ -327,6 +327,11 @@ if(NO_RTTI)
 endif()
 if(NO_EXCEPTIONS)
   if(MSVC)
+    if(CMAKE_CXX_FLAGS MATCHES "/EHsc" OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/EHsc is set by cmake
+      string(REPLACE "/EHsc" "-EHs-c-a-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # cl default is off
+    endif()
+    #add_cxx_flags_if_supported(-d2FH4-)  #/d2FH4: FH4 vcruntime140_1. no effect?
+    #add_link_flags_if_supported(-d2:-FH4-)
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
   endif()
@@ -388,22 +393,24 @@ endif()
 # Dead code elimination
 # https://gcc.gnu.org/ml/gcc-help/2003-08/msg00128.html
 # https://stackoverflow.com/questions/6687630/how-to-remove-unused-c-c-symbols-with-gcc-and-ld
-is_link_flag_supported("-Wl,--gc-sections" GC_SECTIONS) # FIXME: can not be used with -r
-if(GC_SECTIONS)
-  add_compile_options_if_supported("-ffunction-sections") # check cc, mac support it but has no effect
-  check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
-  if(NOT WIN32) # mingw gcc will increase size
-    add_compile_options_if_supported(-fdata-sections)
+if(NOT MSVC) # clang-cl just ignore these
+  is_link_flag_supported("-Wl,--gc-sections" GC_SECTIONS) # FIXME: can not be used with -r
+  if(GC_SECTIONS)
+    add_compile_options_if_supported("-ffunction-sections") # check cc, mac support it but has no effect
+    check_c_compiler_flag("-Werror -ffunction-sections" HAVE_FUNCTION_SECTIONS)
+    if(NOT WIN32) # mingw gcc will increase size
+      add_compile_options_if_supported(-fdata-sections)
+    endif()
+    add_link_options("-Wl,--gc-sections")
   endif()
-  add_link_options("-Wl,--gc-sections")
-endif()
 # TODO: what is -dead_strip equivalent? elf static lib will not remove unused symbols. /Gy + /opt:ref for vc https://stackoverflow.com/questions/25721820/is-c-linkage-smart-enough-to-avoid-linkage-of-unused-libs?noredirect=1&lq=1
 # TODO: gcc -fdce
-add_link_flags_if_supported(
-  -Wl,--no-allow-shlib-undefined
-  -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
-  -Wl,-z,defs # do not allow undefined symbols in shared library targets
-  )
+  add_link_flags_if_supported(
+    -Wl,--no-allow-shlib-undefined
+    -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
+    -Wl,-z,defs # do not allow undefined symbols in shared library targets
+    )
+endif()
 if(APPLE)
   add_link_flags(-dead_strip)
 endif()
@@ -472,6 +479,7 @@ endif()
 
 
 if(SANITIZE)
+# -fomit-frame-pointer smaller size, but asan will slow: https://github.com/android/ndk/issues/824
   # clang-cl: -Oy- = -fno-omit-frame-pointer -funwind-tables, -Oy = -fomit-frame-pointer -funwind-tables
   # memory sanitize does not supports macOS. address and thread can not be used together
   #add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined,integer,nullability)
@@ -558,6 +566,9 @@ function(mkdsym tgt)
     endif()
   endif()
   if(APPLE)
+# no dSYM for lto, dsymutil:
+# warning: (x86_64) /tmp/lto.o unable to open object file: No such file or directory
+# warning: no debug symbols in executable (-arch x86_64)
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
       )
