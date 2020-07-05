@@ -21,6 +21,7 @@
 # TODO: CMakeFindBinUtils.cmake find ar, rc lld etc.?
 # TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
 # TODO: msvc abi in gnu style: https://cmake.org/cmake/help/v3.15/release/3.15.html#compilers
+# TODO: guess WINSDK_VER from sdk dir
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
@@ -40,6 +41,8 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   MSVC_DIR
   WINSDK_DIR
   WINSDK_VER
+  WINSDK_VFS_OVERLAY_PATH
+  WINSDK_LIB_SYMLINKS_DIR
 )
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}) # ${CMAKE_SYSTEM_NAME}-Clang-C.cmake is missing
@@ -274,19 +277,21 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
     set(case_sensitive_fs TRUE)
   endif()
   if(case_sensitive_fs)
-    set(winsdk_vfs_overlay_path "${WINSDK_DIR}/vfs.yaml")
-    if(NOT EXISTS "${WINSDK_DIR}/vfs.yaml")
-      set(winsdk_vfs_overlay_path "${CMAKE_BINARY_DIR}/winsdk_vfs.yaml")
-      if(NOT EXISTS "${winsdk_vfs_overlay_path}")
+    if(NOT WINSDK_VFS_OVERLAY_PATH)
+      set(WINSDK_VFS_OVERLAY_PATH "${WINSDK_DIR}/vfs.yaml")
+    endif()
+    if(NOT EXISTS "${WINSDK_VFS_OVERLAY_PATH}")
+      set(WINSDK_VFS_OVERLAY_PATH "${CMAKE_BINARY_DIR}/winsdk_vfs.yaml")
+      if(NOT EXISTS ${WINSDK_VFS_OVERLAY_PATH})
         message("can not find vfs.yaml in windows sdk, generating one. or you can use winsdk from https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download")
-        generate_winsdk_vfs_overlay("${WINSDK_INCLUDE}" "${winsdk_vfs_overlay_path}")
+        generate_winsdk_vfs_overlay("${WINSDK_INCLUDE}" "${WINSDK_VFS_OVERLAY_PATH}")
         message("generating windows sdk lib symlinks...")
-        set(winsdk_lib_symlinks_dir "${CMAKE_BINARY_DIR}/winsdk_lib_symlinks")
-        generate_winsdk_lib_symlinks("${WINSDK_LIB}/um/${WINSDK_ARCH}" "${winsdk_lib_symlinks_dir}")
-        list(APPEND LINK_FLAGS -libpath:"${winsdk_lib_symlinks_dir}")
+        set(WINSDK_LIB_SYMLINKS_DIR "${CMAKE_BINARY_DIR}/winsdk_lib_symlinks")
+        generate_winsdk_lib_symlinks("${WINSDK_LIB}/um/${WINSDK_ARCH}" "${WINSDK_LIB_SYMLINKS_DIR}")
       endif()
     endif()
-    list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${winsdk_vfs_overlay_path}")
+    list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_VFS_OVERLAY_PATH}")
+    list(APPEND LINK_FLAGS -libpath:"${WINSDK_LIB_SYMLINKS_DIR}")
   endif()
 endif()
 
