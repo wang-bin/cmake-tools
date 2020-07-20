@@ -368,6 +368,7 @@ set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 if(EXISTS ${LLVM_BIN})
   set(LLVM_RC ${LLVM_BIN}/llvm-rc${_EXE})
   set(LLVM_MT ${LLVM_BIN}/llvm-mt${_EXE})
+  set(LLVM_LIB ${LLVM_BIN}/llvm-lib${_EXE})
 else()
   execute_process(
     COMMAND ${CLANG_EXE} -print-prog-name=llvm-rc
@@ -379,11 +380,14 @@ else()
     OUTPUT_VARIABLE LLVM_MT
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
+  # -print-prog-name=llvm-lib result is E:/LLVM/bin\llvm-lib, Invalid character escape '\l'.
+  string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "llvm-lib\\1${_EXE}" LLVM_LIB "${CMAKE_C_COMPILER}")
 endif()
 # rc rule: void cmNinjaTargetGenerator::WriteCompileRule(const std::string& lang)
 set(CMAKE_RC_COMPILER_INIT ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_RC_COMPLIER ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
 set(CMAKE_GENERATOR_RC ${LLVM_RC} CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm rc" FORCE)
+set(CMAKE_AR ${LLVM_LIB}  CACHE INTERNAL "${CMAKE_SYSTEM_NAME} llvm-lib for static libs since cmake 3.18" FORCE) # cmake<3.18 CMAKE_AR="lld-link -lib" for static lib
 
 if(WINSDK_ARCH STREQUAL "arm")
   set(CMAKE_TRY_COMPILE_CONFIGURATION Release) # default is debug, /Zi error for arm
