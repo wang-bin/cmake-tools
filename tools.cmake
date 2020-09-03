@@ -167,6 +167,8 @@ if(ARCH MATCHES 86)
 endif()
 
 if(APPLE)
+  #add_compile_options(-target x86_64-apple-ios13.0-macabi -iframeworkwithsysroot /System/iOSSupport/System/Library/Frameworks)
+  #link_libraries("-F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk/System/iOSSupport/System/Library/Frameworks")
   #add_compile_options(-gdwarf-2)
   set(CMAKE_INSTALL_NAME_DIR "@rpath")
 endif()
@@ -205,6 +207,13 @@ if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
 endif()
 #add_compile_options_if_supported(-JMC) # debug only
+if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES 64)
+  if(MSVC)
+    add_link_options(/LARGEADDRESSAWARE)
+  else()
+    add_link_options(-Wl,--large-address-aware)
+  endif()
+endif()
 
 check_c_compiler_flag(-Wunused HAVE_WUNUSED)
 if(HAVE_WUNUSED)
@@ -597,7 +606,7 @@ function(mkres files)
         # Convert hex data for C compatibility
         string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," filedata ${filedata})
         # Append data to output file
-        file(APPEND ${ARGV0} "static const unsigned char k${filename}[] = {${filedata}0x00};\nstatic const size_t k${filename}_size = sizeof(k${filename});\n")
+        file(APPEND ${ARGV0} "static const unsigned char k${filename}[] = {${filedata}0x00};\nstatic const size_t k${filename}_size = sizeof(k${filename})-1;\n")
     endforeach()
 endfunction()
 
