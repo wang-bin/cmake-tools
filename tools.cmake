@@ -18,6 +18,7 @@
 # always set policies to ensure they are applied on every project's policy stack
 # include() with NO_POLICY_SCOPE to apply the cmake_policy in parent scope
 # TODO: vc 1913+  "-Zc:__cplusplus -std:c++14" to correct __cplusplus. see qt msvc-version.conf. https://blogs.msdn.microsoft.com/vcblog/2018/04/09/msvc-now-correctly-reports-__cplusplus/
+# MinSizeRelWithDebInfo
 # cmake_dependent_option
 # add_link_options, target_link_options/directories,
 if(POLICY CMP0022) # since 2.8.12. link_libraries()
@@ -495,7 +496,7 @@ if(SANITIZE)
   #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
   #set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
   #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
-  #add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined)
+  add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=thread,nullability,integer)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
   set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
@@ -676,8 +677,9 @@ function(set_rpath)
   if(WIN32 OR ANDROID)
     return()
   endif()
-  cmake_parse_arguments(RPATH "" "" "DIRS" ${ARGN}) #ARGV?
+  cmake_parse_arguments(RPATH "" "" "DIRS;TARGET" ${ARGN}) #ARGV?
   test_lflags(RPATH_FLAGS "-Wl,--enable-new-dtags")
+  set(RPATH_FLAGS_LIST ${RPATH_FLAGS})
   set(LD_RPATH "-Wl,-rpath,")
 # Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
 # Working dir search: "."
@@ -688,14 +690,22 @@ function(set_rpath)
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
+    list(APPEND RPATH_FLAGS_LIST -Wl,-z,origin)
   endif()
   foreach(p ${RPATH_DIRS})
     set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
+    list(APPEND RPATH_FLAGS_LIST ${LD_RPATH}\"${p}\")
   endforeach()
   #set(CMAKE_INSTALL_RPATH "${RPATH_DIRS}")
   #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
   #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
-  if(NOT IOS) # iOS: -rpath can only be used when creating a dynamic final linked image
+  if(RPATH_TARGET AND IOS)
+    get_target_property(tgt_reloc ${RPATH_TARGET} RELOCATABLE)
+    if(NOT IOS OR NOT tgt_reloc) # iOS: -rpath can only be used when creating a dynamic final linked image
+      #target_link_options(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST}) #3.13
+      target_link_libraries(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST})
+    endif()
+  elseif(NOT IOS) # iOS: -rpath can only be used when creating a dynamic final linked image
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
   endif()
