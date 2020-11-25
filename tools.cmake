@@ -584,7 +584,7 @@ function(mkdsym tgt)
       )
   endif()
   if(MSVC) # llvm-mingw can generate pdb too
-    install(FILES $<TARGET_PDB_FILE:${tgt}> CONFIGURATIONS RelWithDebInfo Debug DESTINATION bin OPTIONAL) #COMPILE_PDB_OUTPUT_DIRECTORY and COMPILE_PDB_NAME for static
+    install(FILES $<TARGET_PDB_FILE:${tgt}> CONFIGURATIONS RelWithDebInfo Debug MinSizeRel DESTINATION bin OPTIONAL) #COMPILE_PDB_OUTPUT_DIRECTORY and COMPILE_PDB_NAME for static
   endif()
 endfunction()
 
