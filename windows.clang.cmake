@@ -290,26 +290,45 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
         generate_winsdk_lib_symlinks("${WINSDK_LIB}/um/${WINSDK_ARCH}" "${WINSDK_LIB_SYMLINKS_DIR}")
       endif()
     endif()
-    list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_VFS_OVERLAY_PATH}")
     list(APPEND LINK_FLAGS -libpath:"${WINSDK_LIB_SYMLINKS_DIR}")
+    if(CMAKE_VERSION VERSION_LESS 3.19.0)
+      list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_VFS_OVERLAY_PATH}")
+    else()
+      set(CMAKE_CLANG_VFS_OVERLAY "${WINSDK_VFS_OVERLAY_PATH}" CACHE INTERNAL "windows vfs")
+    endif()
   endif()
 endif()
 
+set(IMSVC)
 if(EXISTS "${MSVC_INCLUDE}")
-  list(APPEND COMPILE_FLAGS -imsvc "${MSVC_INCLUDE}")
+  list(APPEND IMSVC "${MSVC_INCLUDE}")
   list(APPEND LINK_FLAGS -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}")
 endif()
 if(EXISTS "${WINSDK_INCLUDE}")
-  list(APPEND COMPILE_FLAGS
-    -imsvc "${WINSDK_INCLUDE}/ucrt"
-    -imsvc "${WINSDK_INCLUDE}/shared"
-    -imsvc "${WINSDK_INCLUDE}/um"
-    -imsvc "${WINSDK_INCLUDE}/winrt")
+  list(APPEND IMSVC
+    "${WINSDK_INCLUDE}/ucrt"
+    "${WINSDK_INCLUDE}/shared"
+    "${WINSDK_INCLUDE}/um"
+    "${WINSDK_INCLUDE}/winrt"
+  )
   list(APPEND LINK_FLAGS
     -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
     -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
     )
+endif()
+
+# https://gitlab.kitware.com/cmake/cmake/-/issues/20658#note_804737
+if(IMSVC)
+  set(CMAKE_RC_STANDARD_INCLUDE_DIRECTORIES ${IMSVC})
+  if(CMAKE_VERSION VERSION_LESS 3.19.0)
+    foreach(d ${IMSVC})
+      list(APPEND COMPILE_FLAGS -imsvc ${d})
+    endforeach(d ${IMSVC})
+  else()
+    set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${IMSVC})
+    set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${IMSVC})
+  endif()
 endif()
 
 set(VSCMD_VER $ENV{VSCMD_VER})
