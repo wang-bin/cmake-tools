@@ -295,6 +295,7 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
       list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_VFS_OVERLAY_PATH}")
     else()
       set(CMAKE_CLANG_VFS_OVERLAY "${WINSDK_VFS_OVERLAY_PATH}" CACHE INTERNAL "windows vfs")
+      set(CMAKE_RC_FLAGS_INIT "-Xclang -ivfsoverlay -Xclang ${WINSDK_VFS_OVERLAY_PATH}") # cmake3.19 does not apply CMAKE_CLANG_VFS_OVERLAY for rc
     endif()
   endif()
 endif()
