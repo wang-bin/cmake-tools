@@ -165,7 +165,7 @@ if(WIN32)
     set(ARCH x64)
   endif()
 endif()
-if(ARCH MATCHES 86 AND NOT MATCHES 64)
+if(ARCH MATCHES 86 AND NOT ARCH MATCHES 64)
   set(ARCH x86)
 endif()
 
