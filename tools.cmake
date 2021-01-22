@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2020, Wang Bin
+# Copyright (c) 2017-2021, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -41,6 +41,8 @@ option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AN
 option(NO_RTTI "Enable C++ rtti" ON)
 option(NO_EXCEPTIONS "Enable C++ exceptions" ON)
 option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
+option(USE_BITCODE "Enable bitcode for Apple" OFF)
+option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -176,6 +178,20 @@ if(APPLE)
   #link_libraries("-F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk/System/iOSSupport/System/Library/Frameworks")
   #add_compile_options(-gdwarf-2)
   set(CMAKE_INSTALL_NAME_DIR "@rpath")
+  if(USE_BITCODE)
+    add_compile_options(-fembed-bitcode)
+    add_link_options(-fembed-bitcode)
+  elseif(USE_BITCODE_MARKER)
+    add_compile_options(-fembed-bitcode-marker)
+    add_link_options(-fembed-bitcode-marker)
+  endif()
+
+  if(NOT IOS_BITCODE) # ios.cmake
+    set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE ${USE_BITCODE})
+  endif()
+  if(USE_BITCODE)
+    set(CMAKE_XCODE_ATTRIBUTE_BITCODE_GENERATION_MODE "bitcode") # Without this, Xcode adds -fembed-bitcode-marker compile options instead of -fembed-bitcode  set(CMAKE_C_FLAGS "-fembed-bitcode ${CMAKE_C_FLAGS}")
+  endif()
 endif()
 
 if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
