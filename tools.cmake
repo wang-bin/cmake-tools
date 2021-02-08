@@ -707,7 +707,7 @@ function(set_rpath)
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
 # https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
-    list(APPEND RPATH_DIRS @loader_path/Libraries @loader_path @executable_path/../Frameworks /usr/local/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
+    list(APPEND RPATH_DIRS @loader_path/Libraries @loader_path @executable_path/../Frameworks /opt/homebrew/lib /usr/local/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
     # -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
