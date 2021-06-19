@@ -135,6 +135,7 @@ if(WINDOWS_XP AND MSVC AND NOT WINDOWS_XP_SET) # move too win.cmake?
   if(CMAKE_CL_64)
     set(WIN_VER_DEFAULT 5.2)
   endif()
+  unset(CMAKE_SYSTEM_VERSION)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,${WIN_VER_DEFAULT}") # mingw: --subsystem name:x[.y]
 endif()
 
@@ -157,7 +158,7 @@ if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC AND NOT WIN_VER_HEX)
   dec_to_hex(WIN_MAJOR_HEX ${WIN_MAJOR})
   dec_to_hex(WIN_MINOR_HEX ${WIN_MINOR})
   set(WIN_VER_HEX 0x0${WIN_MAJOR_HEX}0${WIN_MINOR_HEX})
-  add_definitions(-DUNICODE -D_UNICODE -D_WIN32_WINNT=${WIN_VER_HEX})
+  add_definitions(-nologo -DUNICODE -D_UNICODE -D_WIN32_WINNT=${WIN_VER_HEX})
 endif()
 
 if(NOT OS)
