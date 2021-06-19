@@ -110,18 +110,19 @@ endif()
 if(WINDOWS_DESKTOP AND ARCH MATCHES "arm" AND NOT _ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE_SET)
   add_definitions(-D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE=1)
 endif()
+set(WIN_VER_DEFAULT 6.0)
 if(WINRT AND NOT WINRT_SET)
   # SEH?
   if(WINDOWS_PHONE)
+    set(WIN_VER_DEFAULT 6.3)
     if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_PHONE_APP)
     endif()
-    add_definitions(-D_WIN32_WINNT=0x0603) # cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
   else()
+    set(WIN_VER_DEFAULT 10.0)
     if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
       add_definitions(-DWINAPI_FAMILY=WINAPI_FAMILY_APP)
     endif()
-    add_definitions(-D_WIN32_WINNT=0x0A00)
   endif()
   #add_compile_options(-ZW) #C++/CX, defines __cplusplus_winrt
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib")
@@ -130,12 +131,33 @@ if(WINRT AND NOT WINRT_SET)
 endif()
 
 if(WINDOWS_XP AND MSVC AND NOT WINDOWS_XP_SET) # move too win.cmake?
-  set(WIN_MINOR 01)
+  set(WIN_VER_DEFAULT 5.1)
   if(CMAKE_CL_64)
-    set(WIN_MINOR 02)
+    set(WIN_VER_DEFAULT 5.2)
   endif()
-  add_definitions(-D_WIN32_WINNT=0x05${WIN_MINOR})
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,5.${WIN_MINOR}") # mingw: --subsystem name:x[.y]
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,${WIN_VER_DEFAULT}") # mingw: --subsystem name:x[.y]
+endif()
+
+if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC AND NOT WIN_VER_HEX)
+# cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
+  macro(dec_to_hex VAR VAL)
+    if (${VAL} LESS 10)
+      SET(${VAR} ${VAL})
+    else()
+      math(EXPR A "55 + ${VAL}")
+      string(ASCII ${A} ${VAR})
+    endif()
+  endmacro(dec_to_hex)
+  if(NOT CMAKE_SYSTEM_VERSION)
+    set(CMAKE_SYSTEM_VERSION ${WIN_VER_DEFAULT})
+  endif()
+  string(REGEX MATCH "([0-9]*)\\.([0-9]*)" matched ${CMAKE_SYSTEM_VERSION})
+  set(WIN_MAJOR ${CMAKE_MATCH_1})
+  set(WIN_MINOR ${CMAKE_MATCH_2})
+  dec_to_hex(WIN_MAJOR_HEX ${WIN_MAJOR})
+  dec_to_hex(WIN_MINOR_HEX ${WIN_MINOR})
+  set(WIN_VER_HEX 0x0${WIN_MAJOR_HEX}0${WIN_MINOR_HEX})
+  add_definitions(-DUNICODE -D_UNICODE -D_WIN32_WINNT=${WIN_VER_HEX})
 endif()
 
 if(NOT OS)
@@ -707,8 +729,8 @@ function(set_rpath)
 # mac: install_name @rpath/... will search paths set in rpath link flags
   if(APPLE)
 # https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
-    list(APPEND RPATH_DIRS @loader_path/Libraries @loader_path @executable_path/../Frameworks /opt/homebrew/lib /usr/local/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
-    # -install_name @rpath/... is set by cmake
+list(APPEND RPATH_DIRS @loader_path/Libraries @loader_path @executable_path/../Frameworks /opt/homebrew/lib /usr/local/lib) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
+# -install_name @rpath/... is set by cmake
   else()
     list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
