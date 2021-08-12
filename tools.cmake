@@ -302,6 +302,7 @@ if(ANDROID)
     endif()
   endif()
   # TODO: ndk19 add toolchain sysroot, e.g. ${ANDROID_TOOLCHAIN_ROOT}/sysroot/usr/lib/${ANDROID_TOOLCHAIN_NAME}/${ANDROID_PLATFORM_LEVEL}
+  if(ANDROID_TOOLCHAIN_NAME)
   string(REPLACE "-clang" "" ANDROID_TOOLCHAIN_NAME_BASE ${ANDROID_TOOLCHAIN_NAME})
   set(ANDROID_PLATFORM_LIBS_DIR ${ANDROID_SYSROOT}/usr/lib/${ANDROID_TOOLCHAIN_NAME_BASE}/${ANDROID_PLATFORM_LEVEL})
   if(NOT EXISTS "${ANDROID_PLATFORM_LIBS_DIR}") # ANDROID_SYSROOT is removed in r20
@@ -326,6 +327,7 @@ if(ANDROID)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_LIBRARY_PATH_FLAG}${ANDROID_STL_LIB_DIR}")
   endif()
+  endif(ANDROID_TOOLCHAIN_NAME)
   # TODO: compiler-rt
   if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
     # g++ has no -stdlib option. clang default stdlib is -lstdc++. we change it to libc++ to avoid linking against libstdc++
