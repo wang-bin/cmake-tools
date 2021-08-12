@@ -381,8 +381,10 @@ if(NO_RTTI)
 endif()
 if(NO_EXCEPTIONS)
   if(MSVC)
-    if(CMAKE_CXX_FLAGS MATCHES "/EHsc" OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/EHsc is set by cmake
-      string(REPLACE "/EHsc" "-EHs-c-a-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # cl default is off
+    if(NOT WINRT)
+      if(CMAKE_CXX_FLAGS MATCHES "/EHsc" OR CMAKE_CXX_FLAGS MATCHES "/EHsc$") #/EHsc is set by cmake
+        string(REPLACE "/EHsc" "-EHs-c-a-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # cl default is off
+      endif()
     endif()
     #add_cxx_flags_if_supported(-d2FH4-)  #/d2FH4: FH4 vcruntime140_1. no effect?
     #add_link_flags_if_supported(-d2:-FH4-)
