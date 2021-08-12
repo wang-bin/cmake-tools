@@ -250,7 +250,11 @@ endif()
 if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
 endif()
-#add_compile_options_if_supported(-JMC) # debug only
+check_cxx_compiler_flag("-W4 -WX -JMC" HAS_C_FLAG_JMC)
+if(HAS_C_FLAG_JMC)
+  add_compile_options($<$<CONFIG:DEBUG>:-JMC>)
+endif()
+
 if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES 64)
   if(MSVC)
     add_link_options(/LARGEADDRESSAWARE)
