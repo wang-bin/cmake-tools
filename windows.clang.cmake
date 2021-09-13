@@ -100,7 +100,7 @@ endif()
 
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-cl-12 clang-cl-11 clang-cl-10 clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
+  find_program(CMAKE_C_COMPILER clang-cl-14 clang-cl-13 clang-cl-12 clang-cl-11 clang-cl-10 clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
