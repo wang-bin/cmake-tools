@@ -162,7 +162,10 @@ endif()
 # Specify minimum version of deployment target.
 # Unless specified, the latest SDK version is used by default.
 if(NOT DEFINED IOS_DEPLOYMENT_TARGET)
-  set(IOS_DEPLOYMENT_TARGET "${IOS_SDK_VERSION}" CACHE STRING "Minimum iOS version to build for." )
+  set(IOS_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET})
+endif()
+if(NOT DEFINED IOS_DEPLOYMENT_TARGET)
+  set(IOS_DEPLOYMENT_TARGET "8.0" CACHE STRING "Minimum iOS version to build for." )
 endif()
 message(STATUS "Building for minimum iOS version: ${IOS_DEPLOYMENT_TARGET} (SDK version: ${IOS_SDK_VERSION})")
 set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "${IOS_DEPLOYMENT_TARGET}")
@@ -273,7 +276,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 
 # Force unset of OS X-specific deployment target (otherwise autopopulated),
 # required as of cmake 2.8.10.
-set(CMAKE_OSX_DEPLOYMENT_TARGET "" CACHE STRING "Must be empty for iOS builds." FORCE)
+set(CMAKE_OSX_DEPLOYMENT_TARGET ${IOS_DEPLOYMENT_TARGET} CACHE STRING "Must be empty for iOS builds." FORCE)
 # Set the architectures for which to build. required by try_compile()
 set(CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE STRING "iOS architectures" FORCE)
 # Skip the platform compiler checks for cross compiling.
