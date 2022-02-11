@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2021, Wang Bin
+# Copyright (c) 2017-2022, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -231,6 +231,7 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
       else() # FIXME: gcc can not recognize clang attributes and objc syntax
       endif()
     endif()
+    # CMAKE_OSX_DEPLOYMENT_TARGET is set to host os version by cmake if not set by user
     if(IOS)
       if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET 8.0)
