@@ -615,6 +615,19 @@ function(mkdsym tgt)
   if(NOT TYPE STREQUAL SHARED_LIBRARY AND NOT TYPE STREQUAL MODULE_LIBRARY)
     return()
   endif()
+  if(APPLE)
+# no dSYM for lto, dsymutil:
+# warning: (x86_64) /tmp/lto.o unable to open object file: No such file or directory
+# warning: no debug symbols in executable (-arch x86_64)
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
+      )
+    return()
+  endif()
+  if(MSVC) # llvm-mingw can generate pdb too
+    install(FILES $<TARGET_PDB_FILE:${tgt}> CONFIGURATIONS RelWithDebInfo Debug MinSizeRel DESTINATION bin OPTIONAL) #COMPILE_PDB_OUTPUT_DIRECTORY and COMPILE_PDB_NAME for static
+    return()
+  endif()
   if(CMAKE_OBJCOPY)
     if(${CMAKE_OBJCOPY} MATCHES ".*llvm-objcopy.*")
       #set(KEEP_OPT_EXTRA --strip-sections) # will leave an empty elf
@@ -636,17 +649,6 @@ function(mkdsym tgt)
     else()
       install(FILES $<TARGET_FILE:${tgt}>.dsym DESTINATION lib)
     endif()
-  endif()
-  if(APPLE)
-# no dSYM for lto, dsymutil:
-# warning: (x86_64) /tmp/lto.o unable to open object file: No such file or directory
-# warning: no debug symbols in executable (-arch x86_64)
-    add_custom_command(TARGET ${tgt} POST_BUILD
-      COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
-      )
-  endif()
-  if(MSVC) # llvm-mingw can generate pdb too
-    install(FILES $<TARGET_PDB_FILE:${tgt}> CONFIGURATIONS RelWithDebInfo Debug MinSizeRel DESTINATION bin OPTIONAL) #COMPILE_PDB_OUTPUT_DIRECTORY and COMPILE_PDB_NAME for static
   endif()
 endfunction()
 
