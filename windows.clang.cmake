@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018-2021, Wang Bin
+# Copyright (c) 2018-2022, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
@@ -100,7 +100,7 @@ endif()
 
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-cl-14 clang-cl-13 clang-cl-12 clang-cl-11 clang-cl-10 clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
+  find_program(CMAKE_C_COMPILER clang-cl-15 clang-cl-14 clang-cl-13 clang-cl-12 clang-cl-11 clang-cl-10 clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
@@ -201,7 +201,7 @@ endif()
 # https://bugs.llvm.org/show_bug.cgi?id=42843 # <type_traits> clang-cl-9 lld-link/link: error: duplicate symbol: bool const std::_Is_integral<bool> in a.obj and in b.obj
 # CMAKE_CXX_COMPILER_VERSION is not detected in toolchain file
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
-    --target=${TRIPLE_ARCH}-pc-windows-msvc
+    --target=${TRIPLE_ARCH}-pc-windows-msvc # CMAKE_<LANG>_COMPILER_TARGET
     #-fms-compatibility-version=19.15
     #-Werror=unknown-argument
     #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
@@ -347,7 +347,7 @@ endif()
 list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
   if(NOT WINSDK_ARCH STREQUAL "arm") # TODO: -EHsc internal error for arm
-    list(APPEND COMPILE_FLAGS -EHsc)
+      list(APPEND COMPILE_FLAGS -EHsc)
   endif()
   list(APPEND LINK_FLAGS -appcontainer -nodefaultlib:kernel32.Lib -nodefaultlib:Ole32.Lib)
   if(CMAKE_SYSTEM_NAME STREQUAL WindowsStore) # checked by MSVC_VERSION
