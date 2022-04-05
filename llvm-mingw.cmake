@@ -25,6 +25,7 @@ endif()
 if(NOT LLVM_MINGW)
   set(LLVM_MINGW $ENV{LLVM_MINGW})
 endif()
+cmake_path(CONVERT ${LLVM_MINGW} TO_CMAKE_PATH_LIST LLVM_MINGW)
 
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 # avoid find_program multiple times
@@ -47,9 +48,9 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
 endif()
 
 set(_LLVM_TRIPPLE ${_TRIPLE_ARCH}-w64-mingw32${_OS_API})
-SET(CMAKE_C_COMPILER ${LLVM_MINGW}/bin/${_LLVM_TRIPPLE}-clang)
-SET(CMAKE_CXX_COMPILER ${LLVM_MINGW}/bin/${_LLVM_TRIPPLE}-clang++)
-SET(CMAKE_RC_COMPILER ${LLVM_MINGW}/bin/${_LLVM_TRIPPLE}-windres)
+find_program(CMAKE_C_COMPILER ${_LLVM_TRIPPLE}-clang HINTS ${LLVM_MINGW}/bin)
+find_program(CMAKE_CXX_COMPILER ${_LLVM_TRIPPLE}-clang++ HINTS ${LLVM_MINGW}/bin)
+find_program(CMAKE_RC_COMPILER ${_LLVM_TRIPPLE}-windres HINTS ${LLVM_MINGW}/bin)
 add_compile_options(-gcodeview)
 add_link_options(-Wl,-pdb=)
 #add_compile_options($<$<CONFIG:DEBUG>:-gcodeview>)
