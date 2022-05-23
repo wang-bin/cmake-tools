@@ -3,14 +3,30 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2021, Wang Bin
+# Copyright (c) 2017-2022, Wang Bin
 # use: -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
 
 set(CMAKE_SYSTEM_NAME Darwin) # Modules/Platform/Apple-Clang.cmake:   elseif(CMAKE_SYSTEM_NAME MATCHES "iOS") set(CMAKE_${lang}_OSX_DEPLOYMENT_TARGET_FLAG "-miphoneos-version-min=")
 set(MACCATALYST 1)
 #set(CMAKE_OSX_SYSROOT iphoneos) # fatal error if CMAKE_SYSTEM_NAME is iOS, in iOS-Initialize.cmake if sdk is macosx. modify to macosx later. can override CMAKE_OSX_SYSROOT and config twice
+
+execute_process(COMMAND xcodebuild -version
+  OUTPUT_VARIABLE XCODE_VERSION
+  ERROR_QUIET
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REGEX MATCH "Xcode [0-9\\.]+" XCODE_VERSION "${XCODE_VERSION}")
+string(REGEX REPLACE "Xcode ([0-9\\.]+)" "\\1" XCODE_VERSION "${XCODE_VERSION}")
+message(STATUS "Building with Xcode version: ${XCODE_VERSION}")
+
+# xcode13.3 min catalyst target is 13.1
+if(XCODE_VERSION VERSION_LESS 13.3)
+  set(CATALYSTE_TARGET_MIN 13.0)
+else()
+  set(CATALYSTE_TARGET_MIN 13.1)
+endif()
+
 if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET ${CATALYSTE_TARGET_MIN})
 endif()
 list(LENGTH CMAKE_OSX_ARCHITECTURES ARCH_COUNT)
 if(ARCH_COUNT GREATER 1)
