@@ -29,9 +29,22 @@ if(NOT CMAKE_SYSTEM_PROCESSOR)
 endif()
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "ar.*64")
   set(TRIPLE_ARCH aarch64)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm") # arm.*hf?
-  set(TRIPLE_ARCH arm)
-  set(TRIPLE_ABI eabihf)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm.*hf") # armhf, armv7hf, armv6kzhf
+  string(REPLACE "hf" "" __MARCH "${CMAKE_SYSTEM_PROCESSOR}")
+  if(NOT ${__MARCH} STREQUAL "arm")
+    add_compile_options(-march=${__MARCH})
+  endif()
+  set(TRIPLE_ARCH arm) # will affect lib dir search, e.g. /lib/${TRIPLE_ARCH}-linux-gnueabihf
+  set(TRIPLE_ABI eabihf) # armhf: -mfloat-abi=hard
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+  set(TRIPLE_ARCH arm) # will affect lib dir search, e.g. /lib/${TRIPLE_ARCH}-linux-gnueabihf
+  set(TRIPLE_ABI eabi) # armel: -mfloat-abi=soft -mfloat-abi=softfp
+  if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm" AND NOT LINUX_FLAGS MATCHES "-march=")
+    add_compile_options(-march=${CMAKE_SYSTEM_PROCESSOR})
+  endif()
+  if(LINUX_FLAGS MATCHES "-mfloat-abi=hard")
+    set(TRIPLE_ABI eabihf) # TARGET_TRIPPLE will affect lib dir search
+  endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "64")
   set(TRIPLE_ARCH x86_64)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "86")
