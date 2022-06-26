@@ -50,10 +50,14 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "64")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "86")
   set(TRIPLE_ARCH i386)
 endif()
-if(NOT USE_CRT) # can be gnu, musl
+if(NOT DEFINED USE_CRT) # can be gnu, musl
   set(USE_CRT gnu)
 endif()
-set(TARGET_TRIPPLE ${TRIPLE_ARCH}-linux-${USE_CRT}${TRIPLE_ABI})
+if(NOT "${USE_CRT}" STREQUAL "")
+  set(TARGET_ABI "-${USE_CRT}${TRIPLE_ABI}")
+endif()
+# arch[sub][-vendor]-sys[-abi]
+set(TARGET_TRIPPLE ${TRIPLE_ARCH}${TARGET_VENDOR}-linux${TARGET_ABI})
 set(LINUX_FLAGS "--target=${TARGET_TRIPPLE} ${LINUX_FLAGS}")
 
 set(CMAKE_LIBRARY_ARCHITECTURE ${TARGET_TRIPPLE}) # FIND_LIBRARY search subdir
@@ -80,6 +84,13 @@ if(CMAKE_C_COMPILER)
     string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++\\1" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
     if(NOT EXISTS "${CMAKE_CXX_COMPILER}") # homebrew, clang-6.0 but clang++ has no suffix
       string(REGEX REPLACE "clang(|-[0-9]+[\\.0]*)$" "clang++" CMAKE_CXX_COMPILER "${CMAKE_C_COMPILER}")
+      if(NOT EXISTS "${CMAKE_CXX_COMPILER}") # not absolute path. on mac, it's apple clang++, but we need opensource one
+        execute_process(
+            COMMAND ${CMAKE_C_COMPILER} -print-prog-name=clang++
+            OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+      endif()
     endif()
   endif()
   if(NOT LD_LLD)
