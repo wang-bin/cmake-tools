@@ -95,12 +95,18 @@ if(CMAKE_SYSTEM_VERSION LESS 6.0 AND CMAKE_SYSTEM_VERSION GREATER 5.0 AND NOT WI
   set(WINDOWS_XP_SET 1)
 endif()
 if(CMAKE_SYSTEM_VERSION LESS 6.0)
+  # TODO: console subsystem also for dll? version does not matter
   set(EXE_LFLAGS "-SUBSYSTEM:CONSOLE,${WIN_MAJOR}.0${WIN_MINOR}")
 endif()
 
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
-  find_program(CMAKE_C_COMPILER clang-cl-15 clang-cl-14 clang-cl-13 clang-cl-12 clang-cl-11 clang-cl-10 clang-cl-9 clang-cl-8 clang-cl-7 clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl
+  set(CLANG_FULL_NAMES)
+  foreach(ver RANGE 16 7 -1)
+    list(APPEND CLANG_FULL_NAMES clang-cl-${ver})
+  endforeach()
+  list(APPEND CLANG_FULL_NAMES clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl)
+  find_program(CMAKE_C_COMPILER ${CLANG_FULL_NAMES}
     HINTS /usr/local/opt/llvm/bin
     CMAKE_FIND_ROOT_PATH_BOTH
   )
@@ -200,6 +206,8 @@ if(WINDOWS_DESKTOP AND WINSDK_ARCH MATCHES "arm")
 endif()
 # https://bugs.llvm.org/show_bug.cgi?id=42843 # <type_traits> clang-cl-9 lld-link/link: error: duplicate symbol: bool const std::_Is_integral<bool> in a.obj and in b.obj
 # CMAKE_CXX_COMPILER_VERSION is not detected in toolchain file
+# TODO: llvm-15 SEH
+# TODO: -winsysroot(lld-15 too), -winsdkversion, -winsdkdir, -vctoolsdir, -vctoolsversion
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-pc-windows-msvc # CMAKE_<LANG>_COMPILER_TARGET
     #-fms-compatibility-version=19.15
