@@ -384,9 +384,6 @@ if(RPI)
 endif()
 
 
-if(MSVC)
-  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
-endif()
 if(NO_RTTI)
   if(MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
@@ -416,7 +413,7 @@ endif()
 
 if(MSVC)
 # https://docs.microsoft.com/zh-cn/visualstudio/releasenotes/vs2015-rtm-vs#visual-c-performance-and-code-quality
-  add_compile_options(-guard:cf) #-d2guard4: legacy flag for cl(vs<2015) # fix latest angle crash
+  add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-guard:cf>) #-d2guard4: legacy flag for cl(vs<2015) # fix latest angle crash
   add_link_options(-guard:cf)
   if(NOT OPT_REF_SET)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref,icf,lbr")
@@ -446,7 +443,9 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
     else()
     endif()
     list(APPEND ELF_HARDENED_CFLAGS -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2)
-    add_compile_options(${ELF_HARDENED_CFLAGS})
+    foreach(flag ${ELF_HARDENED_CFLAGS})
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${flag}>)
+    endforeach()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ELF_HARDENED_LFLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ELF_HARDENED_EFLAGS}")
@@ -492,7 +491,7 @@ if(APPLE)
 endif()
 if(STATIC_LIBGCC)
   #link_libraries(-static-libgcc) cmake2.8 CMP0022
-  add_link_options(-static-libgcc)
+  add_link_flags_if_supported(-static-libgcc)
 endif()
 
 # If parallel lto is not supported, fallback to single job lto
@@ -545,7 +544,7 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
     endif()
   endif()
   if(LTO_CFLAGS)
-    add_compile_options(${LTO_CFLAGS})
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${LTO_CFLAGS}>) # flags are not recoginzed by nasm
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LTO_LFLAGS}")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LTO_LFLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LTO_LFLAGS}")
