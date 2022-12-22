@@ -262,7 +262,7 @@ if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
 endif()
 check_cxx_compiler_flag("-W4 -WX -JMC" HAS_C_FLAG_JMC)
 if(HAS_C_FLAG_JMC)
-  add_compile_options($<$<CONFIG:DEBUG>:-JMC>)
+  add_compile_options($<$<CONFIG:DEBUG>:-JMC>) # clang-cl-15 supports JMC with Zi(pdb) or Z7 enabled
 endif()
 
 if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES 64)
@@ -278,7 +278,8 @@ if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
 if(APPLE AND USE_ARC)
-  add_compile_options(-fobjc-arc)
+  add_compile_options($<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>) #FIXME: OBJC/OBJCXX not recognized
+  add_compile_options($<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
 endif()
 # TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
 # TODO: test_lflags(var, flags), enable_lflags(flags)
@@ -450,7 +451,7 @@ if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
 
 # ICF, ELF only? ICF is enbled by vc release mode(/opt:ref,icf)
 # FIXME: -fuse-ld=lld is not used. wrong result for android. what about linux desktop? lflags -fuse-ld=lld in linux.clang.cmake works?
-test_lflags(WL_ICF_SAFE "-Wl,--icf=safe") # gnu binutils  # FIXME: can not be used with -r
+test_lflags(WL_ICF_SAFE "-Wl,--icf=safe") # gnu binutils, lld-15  # FIXME: can not be used with -r
   if(WL_ICF_SAFE)
     link_libraries(${WL_ICF_SAFE})
   else() # --icf=all is only safe with clang-7.0+ -faddrsig(default on)
