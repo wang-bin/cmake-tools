@@ -8,6 +8,8 @@
 # llvm-mingw toolchain: https://github.com/mstorsjo/llvm-mingw
 
 option(UWP "build for uwp" OFF)
+option(STATIC_LIBCXX "link against static libc++" ON)
+option(STATIC_WINPTHREAD "link against static winpthread" OFF)
 
 set(CMAKE_C_COMPILER_FRONTEND_VARIANT GNU)
 if(UWP)
@@ -51,8 +53,14 @@ set(_LLVM_TRIPPLE ${_TRIPLE_ARCH}-w64-mingw32${_OS_API})
 find_program(CMAKE_C_COMPILER ${_LLVM_TRIPPLE}-clang HINTS ${LLVM_MINGW}/bin)
 find_program(CMAKE_CXX_COMPILER ${_LLVM_TRIPPLE}-clang++ HINTS ${LLVM_MINGW}/bin)
 find_program(CMAKE_RC_COMPILER ${_LLVM_TRIPPLE}-windres HINTS ${LLVM_MINGW}/bin)
-add_compile_options(-gcodeview)
+add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-gcodeview>)
 add_link_options(-Wl,-pdb=)
+if(STATIC_LIBCXX)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bstatic -lc++ -Wl,-Bdynamic") # or -l:libc++.a will looks up the given name regardless dynamic/static
+endif()
+if(STATIC_WINPTHREAD)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic") # or -l:libwinpthread.a will looks up the given name regardless dynamic/static
+endif()
 #add_compile_options($<$<CONFIG:DEBUG>:-gcodeview>)
 #add_link_options($<$<CONFIG:DEBUG>:-Wl,-pdb=>)
 
