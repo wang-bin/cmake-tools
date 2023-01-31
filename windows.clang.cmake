@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018-2022, Wang Bin
+# Copyright (c) 2018-2023, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
@@ -141,6 +141,7 @@ if(EXISTS ${LLVM_CONFIG})
   )
 endif()
 
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" CMAKE_SYSTEM_PROCESSOR)
 if(NOT CMAKE_SYSTEM_PROCESSOR)
   message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
   set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
@@ -210,6 +211,7 @@ endif()
 # TODO: -winsysroot(lld-15 too), -winsdkversion, -winsdkdir, -vctoolsdir, -vctoolsversion
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-pc-windows-msvc # CMAKE_<LANG>_COMPILER_TARGET
+    #-fms-extensions
     #-fms-compatibility-version=19.15
     #-Werror=unknown-argument
     #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
@@ -325,7 +327,6 @@ if(EXISTS "${WINSDK_INCLUDE}")
     "${WINSDK_INCLUDE}/winrt"
   )
   list(APPEND LINK_FLAGS
-    -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
     -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
     )
@@ -372,19 +373,24 @@ set(CMAKE_CXX_FLAGS "${COMPILE_FLAGS} ${CXX_FLAGS}" CACHE STRING "" FORCE)
 # -Oz + /O1 is minimal size, but may generate wrong code(i386 crash). "/MD /O1 /Ob1 /DNDEBUG" is appended to CMAKE_${lang}_FLAGS_MINSIZEREL_INIT by cmake
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "a.*64")
 # FIXME: CMAKE_C_FLAGS_MINSIZEREL cmake3.19+ no effect?
-  if(MIN_SIZE)
-    set(CMAKE_C_FLAGS_MINSIZEREL_INIT "-Xclang -Oz") # llvm8 fatal error: error in backend: .seh_ directive must appear within an active frame
-    set(CMAKE_CXX_FLAGS_MINSIZEREL_INIT "-Xclang -Oz")
-  else()
     set(_CRT_FLAG_MultiThreaded -MT)
     set(_CRT_FLAG_MultiThreadedDLL -MD)
     set(_CRT_FLAG_MultiThreadedDebug -MTd)
     set(_CRT_FLAG_MultiThreadedDebugDLL -MDd)
     set(_CRT_FLAG_ -MD)
     set(_CRT_FLAG ${_CRT_FLAG_${CMAKE_MSVC_RUNTIME_LIBRARY}})
-    set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -Ob1 -DNDEBUG ${_CRT_FLAG}") # llvm8 fatal error: error in backend: .seh_ directive must appear within an active frame
-    set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -Ob1 -DNDEBUG ${_CRT_FLAG}")
+  if(NOT MIN_SIZE)
+    set(_OPTIMIZE_FLAG -Ob1) # llvm8 fatal error: error in backend: .seh_ directive must appear within an active frame
   endif()
+  set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz ${_OPTIMIZE_FLAG} -DNDEBUG ${_CRT_FLAG}")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
+  unset(_OPTIMIZE_FLAG)
+  unset(_CRT_FLAG)
+  unset(_CRT_FLAG_)
+  unset(_CRT_FLAG_MultiThreadedDebugDLL)
+  unset(_CRT_FLAG_MultiThreadedDebug)
+  unset(_CRT_FLAG_MultiThreadedDLL)
+  unset(_CRT_FLAG_MultiThreaded)
 endif()
 
 string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
