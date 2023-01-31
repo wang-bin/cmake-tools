@@ -123,7 +123,7 @@ if(NOT DEFINED IOS_UNIVERSAL)
 endif()
 
 if(NOT DEFINED IOS_BITCODE) # check xcode/clang version? since xcode 7
-  set(IOS_BITCODE 1)
+  set(IOS_BITCODE 0) # bitcode is depreacted in xcode14
 endif()
 set(IOS_BITCODE_MARKER 0)
 # Determine the platform name and architectures for use in xcodebuild commands
