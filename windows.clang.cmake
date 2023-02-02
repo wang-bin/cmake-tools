@@ -102,7 +102,7 @@ endif()
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
   set(CLANG_FULL_NAMES)
-  foreach(ver RANGE 16 7 -1)
+  foreach(ver RANGE 17 7 -1)
     list(APPEND CLANG_FULL_NAMES clang-cl-${ver})
   endforeach()
   list(APPEND CLANG_FULL_NAMES clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl)

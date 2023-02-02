@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2022, Wang Bin
+# Copyright (c) 2017-2023, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -43,6 +43,7 @@ option(NO_EXCEPTIONS "Enable C++ exceptions" ON)
 option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
 option(USE_BITCODE "Enable bitcode for Apple" OFF)
 option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
+option(MIN_SIZE "Reduce size further for clang" OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -384,7 +385,10 @@ if(RPI)
   list(APPEND EXTRA_INCLUDE ${RPI_VC_DIR}/include)
 endif()
 
-
+if(MIN_SIZE AND CMAKE_BUILD_TYPE MATCHES MinSizeRel AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
+  add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Xclang;-Oz>")
+  add_compile_options("$<$<COMPILE_LANGUAGE:C>:-Xclang;-Oz>")
+endif()
 if(NO_RTTI)
   if(MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-

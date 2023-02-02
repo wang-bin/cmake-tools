@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2022, Wang Bin
+# Copyright (c) 2017-2023, Wang Bin
 #
 # clang + lld to cross build apps for linux
 #
@@ -27,7 +27,7 @@ if(NOT CMAKE_SYSTEM_PROCESSOR)
   message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i386,i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
   set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
 endif()
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "ar.*64")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "[aA].*[rR].*64") # arm64, aarch64
   set(TRIPLE_ARCH aarch64)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm.*hf") # armhf, armv7hf, armv6kzhf
   string(REPLACE "hf" "" __MARCH "${CMAKE_SYSTEM_PROCESSOR}")
@@ -74,7 +74,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 
 if(NOT CMAKE_C_COMPILER)
   set(CLANG_FULL_NAMES)
-  foreach(ver RANGE 16 7 -1)
+  foreach(ver RANGE 17 7 -1)
     list(APPEND CLANG_FULL_NAMES clang-${ver})
   endforeach()
   list(APPEND CLANG_FULL_NAMES clang-6.0 clang-5.0 clang-4.0 clang)
@@ -226,10 +226,10 @@ if(USE_LIBCXX)
 else() # gcc files can be found by clang
   if(NOT USE_STDCXX VERSION_LESS 4.8)
   # Selected GCC installation: always the last (greatest version), no way to change it
-    add_compile_options(-nostdinc++)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>")
     #file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++") # c++ is dir, so LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
-    add_compile_options("-cxx-isystem${CMAKE_SYSROOT}/usr/include/c++/${USE_STDCXX}") # no space after -cxx-isystem
-    add_compile_options("-cxx-isystem${CMAKE_SYSROOT}/usr/include/${TARGET_TRIPPLE}/c++/${USE_STDCXX}") # no space after -cxx-isystem
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CMAKE_SYSROOT}/usr/include/c++/${USE_STDCXX}>") # no space after -cxx-isystem
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CMAKE_SYSROOT}/usr/include/${TARGET_TRIPPLE}/c++/${USE_STDCXX}>") # no space after -cxx-isystem
   endif()
 endif()
 
