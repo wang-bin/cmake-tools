@@ -403,9 +403,12 @@ if(NO_RTTI)
 endif()
 if(NO_EXCEPTIONS)
   if(MSVC)
+    add_definitions(-D_HAS_EXCEPTIONS=0)
     if(NOT WINRT)
       if(CMAKE_CXX_FLAGS MATCHES "/EHsc" OR CMAKE_CXX_FLAGS MATCHES "/EHsc$") #/EHsc is set by cmake
         string(REPLACE "/EHsc" "-EHs-c-a-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # cl default is off
+      else() # clang-cl
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -EHs-c-a-")
       endif()
     endif()
     #add_cxx_flags_if_supported(-d2FH4-)  #/d2FH4: FH4 vcruntime140_1. no effect?
