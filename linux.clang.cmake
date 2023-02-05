@@ -156,6 +156,10 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
+file(GLOB_RECURSE _LIBSTDCXX_SOS LIST_DIRECTORIES false "${CMAKE_SYSROOT}/usr/lib/gcc/${TARGET_TRIPPLE}/*/libstdc++.so")
+if(_LIBSTDCXX_SOS)
+  list(GET _LIBSTDCXX_SOS -1 LIBSTDCXX_SO)
+endif()
 if(USE_LIBCXX)
   if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
   # headers in clang builtin include dir(stddef.h etc.). -nobuiltininc makes cross build harder if a header is not found in sysroot(include_next stddef.h in /usr/include/linux/)
