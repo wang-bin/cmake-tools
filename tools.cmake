@@ -137,7 +137,10 @@ if(WINDOWS_XP AND MSVC AND NOT WINDOWS_XP_SET) # move too win.cmake?
     set(WIN_VER_DEFAULT 5.2)
   endif()
   unset(CMAKE_SYSTEM_VERSION)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -SUBSYSTEM:CONSOLE,${WIN_VER_DEFAULT}") # mingw: --subsystem name:x[.y]
+  foreach(lang C CXX)
+    set(CMAKE_${lang}_CREATE_CONSOLE_EXE -subsystem:console,${WIN_VER_DEFAULT}) # mingw: --subsystem name:x[.y]
+    set(CMAKE_${lang}_CREATE_WIN32_EXE -subsystem:windows,${WIN_VER_DEFAULT}) # mingw: --subsystem name:x[.y]
+  endforeach()
 endif()
 
 if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC AND NOT WIN_VER_HEX)
@@ -267,7 +270,7 @@ if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
 endif()
 check_cxx_compiler_flag("-W4 -WX -JMC" HAS_C_FLAG_JMC)
 if(HAS_C_FLAG_JMC)
-  add_compile_options($<$<CONFIG:DEBUG>:-JMC>) # clang-cl-15 supports JMC with Zi(pdb) or Z7 enabled
+  add_compile_options($<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<CONFIG:DEBUG>>:-JMC>) # clang-cl-15 supports JMC with Zi(pdb) or Z7 enabled
 endif()
 
 if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES 64)
@@ -283,8 +286,7 @@ if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
 if(APPLE AND USE_ARC)
-  add_compile_options($<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>) #FIXME: OBJC/OBJCXX not recognized
-  add_compile_options($<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+  add_compile_options($<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>) #FIXME: OBJC/OBJCXX not recognized
 endif()
 # TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
 # TODO: test_lflags(var, flags), enable_lflags(flags)
@@ -386,8 +388,7 @@ if(RPI)
 endif()
 
 if(MIN_SIZE AND CMAKE_BUILD_TYPE MATCHES MinSizeRel AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
-  add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Xclang;-Oz>")
-  add_compile_options("$<$<COMPILE_LANGUAGE:C>:-Xclang;-Oz>")
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Xclang;-Oz>")
 endif()
 if(NO_RTTI)
   if(MSVC)

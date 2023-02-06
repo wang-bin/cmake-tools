@@ -196,10 +196,11 @@ if(USE_LIBCXX AND NOT EXISTS ${USE_LIBCXX}/include/c++/v1/__config)
   message(SEND_ERROR "USE_LIBCXX MUST be a valid dir contains libc++ include and lib")
 endif()
 
+set(_EXTRA_LIB_DIRS)
 if(USE_LIBCXX)
   add_definitions(-D__WRL_ASSERT__=assert) # avoid including vcruntime_new.h to fix conflicts(assume libc++ is built with LIBCXX_NO_VCRUNTIME)
   set(CXX_FLAGS "${CXX_FLAGS} -I${USE_LIBCXX}/include/c++/v1")
-  list(APPEND LINK_FLAGS -libpath:"${USE_LIBCXX}/lib")
+  list(APPEND _EXTRA_LIB_DIRS "${USE_LIBCXX}/lib")
 endif()
 if(WINDOWS_DESKTOP AND WINSDK_ARCH MATCHES "arm")
   add_definitions(-D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE=1)
@@ -304,7 +305,7 @@ if(NOT CMAKE_HOST_WIN32) # assume CMAKE_HOST_WIN32 means in VS env, vs tools lik
       message("generating windows sdk lib symlinks...")
       generate_winsdk_lib_symlinks("${WINSDK_LIB}/um/${WINSDK_ARCH}" "${WINSDK_LIB_SYMLINKS_DIR}")
     endif()
-    list(APPEND LINK_FLAGS -libpath:"${WINSDK_LIB_SYMLINKS_DIR}")
+    list(APPEND _EXTRA_LIB_DIRS "${WINSDK_LIB_SYMLINKS_DIR}")
     if(CMAKE_VERSION VERSION_LESS 3.19.0)
       list(APPEND COMPILE_FLAGS -Xclang -ivfsoverlay -Xclang "${WINSDK_VFS_OVERLAY_PATH}")
     else()
@@ -317,7 +318,7 @@ endif()
 set(IMSVC)
 if(EXISTS "${MSVC_INCLUDE}")
   list(APPEND IMSVC "${MSVC_INCLUDE}")
-  list(APPEND LINK_FLAGS -libpath:"${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}")
+  list(APPEND _EXTRA_LIB_DIRS "${MSVC_LIB}/${ONECORE_DIR}/${WINSDK_ARCH}/${STORE_DIR}")
 endif()
 if(EXISTS "${WINSDK_INCLUDE}")
   list(APPEND IMSVC
@@ -326,9 +327,9 @@ if(EXISTS "${WINSDK_INCLUDE}")
     "${WINSDK_INCLUDE}/um"
     "${WINSDK_INCLUDE}/winrt"
   )
-  list(APPEND LINK_FLAGS
-    -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
-    -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}"
+  list(APPEND _EXTRA_LIB_DIRS
+    "${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
+    "${WINSDK_LIB}/um/${WINSDK_ARCH}"
     )
 endif()
 
@@ -397,6 +398,7 @@ string(REPLACE ";" " " LINK_FLAGS "${LINK_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${LINK_FLAGS} ${EXE_LFLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_MODULE_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_SHARED_LINKER_FLAGS "${LINK_FLAGS}" CACHE STRING "" FORCE)
+link_directories(${_EXTRA_LIB_DIRS}) # link_directories(BEFORE|AFTER ) in user code will work. CMAKE_*_LINKER_FLAGS will be always before link_directories()
 
 # CMake populates these with a bunch of unnecessary libraries, which requires
 # extra case-correcting symlinks and what not. Instead, let projects explicitly
