@@ -44,6 +44,7 @@ option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
 option(USE_BITCODE "Enable bitcode for Apple" OFF)
 option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
 option(MIN_SIZE "Reduce size further for clang" OFF)
+option(USE_CFGUARD "Enable control flow guard" ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -420,7 +421,7 @@ if(NO_EXCEPTIONS)
 endif()
 
 
-if(MSVC)
+if(USE_CFGUARD AND MSVC)
 # https://docs.microsoft.com/zh-cn/visualstudio/releasenotes/vs2015-rtm-vs#visual-c-performance-and-code-quality
   add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-guard:cf>) #-d2guard4: legacy flag for cl(vs<2015) # fix latest angle crash
   add_link_options(-guard:cf)
@@ -430,6 +431,11 @@ if(MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref,icf,lbr")
   endif()
 endif()
+if(USE_CFGUARD AND MINGW)
+  add_compile_options_if_supported(-mguard=cf)
+  add_link_flags_if_supported(-mguard=cf)
+endif()
+
 if(CMAKE_C_COMPILER_ABI MATCHES "ELF")
   if(ELF_HARDENED)
     set(CFLAGS_STACK_PROTECTOR -fstack-protector-strong) # -fstack-protector-strong(since gcc4.9) is default for debian
