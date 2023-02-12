@@ -190,6 +190,10 @@ if(NOT OS)
         set(ANDROID_TOOLCHAIN_PREFIX ${CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX})
     endif()
     set(ARCH ${ANDROID_ABI})
+  elseif(LINUX) # cmake 3.25
+    set(OS Linux)
+  else()
+    set(OS ${CMAKE_SYSTEM_NAME}) # CMAKE_SYSTEM_NAME == Linux for cmake<3.25
   endif()
 endif()
 
