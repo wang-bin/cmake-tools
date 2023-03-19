@@ -7,7 +7,6 @@ MSVC ABI compatible. Supports x86, x64, arm64(clang-8+).
 #### Requirements
 - Copy of Windows SDK, only Include and Lib are used
 - Copy of msvc sdk, only include and lib are used
-- Symbolic links and clang vfs overlay for case sensitive filesystem. You can use scripts in https://sourceforge.net/projects/avbuild/files/dep/winsdk.7z/download
 
 #### Options
 - WINSDK_DIR (or environment var WindowsSdkDir): win10 sdk dir containing Include and Lib
@@ -42,15 +41,16 @@ Also applies for raspberry pi, sunxi etc.
 - USE_STDCXX: libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler
 - LINUX_SYSROOT: sysroot dir
 
-## Raspberry Pi Host/Cross Build via Clang + LLD
+## Legacy Raspberry Pi Host/Cross Build via Clang + LLD
 
 toolchain file: rpi.clang.cmake
+
+NOTE: using linux.clang.cmake and a generic linux sysroot is enough for a modern arm64 rpi OS. Legacy rpi(1~3) includes brcm libraries.
 
 #### Requirements
 - [Sysroot](https://sourceforge.net/projects/avbuild/files/raspberry-pi/rpi-sysroot.tar.xz/download)
 
 #### Options
-- RPI_SYSROOT or environment var RPI_SYSROOT
 - USE_LIBCXX (optional, default off): use libc++ instead of libstdc++
 
 #### Defined CMake Vars
@@ -68,7 +68,7 @@ toolchain file: ios.cmake (https://github.com/wang-bin/ios.cmake)
 
 #### Options
 - IOS_ARCH: can be armv7, arm64, i386, x86_64 and any combination of above, e.g. "arm64;x86_64" to build universal 64bit binaries
-- IOS_BITCODE (optional, default on)
+- IOS_BITCODE (optional, default off)
 - IOS_EMBEDDED_FRAMEWORK (optional, default off)
 - IOS_DEPLOYMENT_TARGET (optional)
 
@@ -89,9 +89,6 @@ toolchain file: ios.cmake (https://github.com/wang-bin/ios.cmake)
 
 #### Defined CMake Vars
 
-- RPI: if build for raspberry pi. CMAKE_<LANG>_COMPILER is required for cross build. `RPI_SYSROOT` or `RPI_VC_DIR` may be required for cross build
-- HAVE_BRCM: bcm_host.h is found for RPI
-- RPI_VC_DIR: the dir contains `include/bcm_host.h`
 - ARCH: x86, x64, ${ANDROID_ABI}, empty for apple multi-arch build
 - WINRT, WINSTORE
 - OS=rpi, iOS, macOS, WinRT, android

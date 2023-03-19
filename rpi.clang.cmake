@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2020, Wang Bin
+# Copyright (c) 2017-2023, Wang Bin
 #
 # clang + lld to cross build apps for raspberry pi. can be easily change to other target platforms
 #
@@ -43,8 +43,8 @@ endif()
 if(NOT DEFINED USE_LIBCXX)
   set(USE_LIBCXX ON CACHE INTERNAL "use libc++" FORCE) # cache is required by cmake3.13 option() (CMP0077)
 endif()
-set(LINUX_FLAGS "${LINUX_FLAGS} -iwithsysroot /opt/vc/include") # check_include_files() requires CMAKE_C_FLAGS
+set(LINUX_FLAGS "${LINUX_FLAGS} -I=/opt/vc/include") # check_include_files() requires CMAKE_C_FLAGS
 include(${CMAKE_CURRENT_LIST_DIR}/linux.clang.cmake)
+add_link_options(-L=/opt/vc/lib)
+#link_directories(${LINUX_SYSROOT}/opt/vc/lib)
 #include_directories(SYSTEM ${LINUX_SYSROOT}/opt/vc/include)
-#link_directories(${LINUX_SYSROOT}/opt/vc/lib) # no effect
-link_libraries(-L${LINUX_SYSROOT}/opt/vc/lib)
