@@ -58,7 +58,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/add_flags.cmake NO_POLICY_SCOPE)
 
 # set CMAKE_SYSTEM_PROCESSOR, CMAKE_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
 # if host/cross gcc build has opt/vc in sysroot, assume it's for rpi, and defines RPI_VC_DIR for use externally
-if(NOT EXISTS ${RPI_VC_DIR})
+if(NOT RPI)
   execute_process(
       COMMAND ${CMAKE_C_COMPILER} -print-sysroot  #clang does not support -print-sysroot
       OUTPUT_VARIABLE CC_SYSROOT
@@ -69,7 +69,6 @@ if(NOT EXISTS ${RPI_VC_DIR})
     set(RPI_SYSROOT ${CC_SYSROOT})
     set(RPI 1)
     set(OS rpi)
-    set(RPI_VC_DIR ${RPI_SYSROOT}/opt/vc)
     add_definitions(-DOS_RPI=1)
     # unset os detected as host when cross compiling
     unset(APPLE)
@@ -77,6 +76,7 @@ if(NOT EXISTS ${RPI_VC_DIR})
     if(NOT EXISTS /dev/vchiq)
       set(CMAKE_CROSSCOMPILING TRUE)
     endif()
+    add_link_options(-L=/opt/vc/lib)
     message("Raspberry Pi cross build: ${CMAKE_CROSSCOMPILING}")
   endif()
 endif()

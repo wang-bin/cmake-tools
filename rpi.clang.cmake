@@ -45,7 +45,6 @@ if(NOT DEFINED USE_LIBCXX)
 endif()
 set(LINUX_FLAGS "${LINUX_FLAGS} -iwithsysroot /opt/vc/include") # check_include_files() requires CMAKE_C_FLAGS
 include(${CMAKE_CURRENT_LIST_DIR}/linux.clang.cmake)
-set(RPI_VC_DIR ${LINUX_SYSROOT}/opt/vc)
 #include_directories(SYSTEM ${LINUX_SYSROOT}/opt/vc/include)
 #link_directories(${LINUX_SYSROOT}/opt/vc/lib) # no effect
 link_libraries(-L${LINUX_SYSROOT}/opt/vc/lib)
