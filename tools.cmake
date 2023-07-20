@@ -40,6 +40,7 @@ option(COVERAGE "Enable source based code coverage(gcc/clang)" OFF)
 option(STATIC_LIBGCC "Link to static libgcc, useful for windows" OFF) # WIN32 AND CMAKE_C_COMPILER_ID GNU
 option(NO_RTTI "Enable C++ rtti" ON)
 option(NO_EXCEPTIONS "Enable C++ exceptions" ON)
+option(LIBCXX_COMPAT "compatible with legacy libc++, supports new header from toolchain but link against legacy libs in sysroot, also required at runtime if hardened is enabled. e.g. libc++17 -fno-exceptions may requires __libcpp_verbose_abort." ON)
 option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
 option(USE_BITCODE "Enable bitcode for Apple" OFF)
 option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
@@ -85,6 +86,9 @@ if(NOT ARCH)
 # cmake only probes compiler arch for msvc as it's 1 toolchain per arch. we can probes other compilers like msvc, but multi arch build(clang for apple) is an exception
 # here we simply use cmake vars with some reasonable assumptions
   set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID
+  if(NOT ARCH)
+    set(ARCH ${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}) # if languages has no c but c++, e.g. flutter generated projects
+  endif()
   if(NOT ARCH)
     # assume CMAKE_SYSTEM_PROCESSOR is set correctly(e.g. in toolchain file). can equals to CMAKE_HOST_SYSTEM_PROCESSOR, e.g. ios simulator
     set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
@@ -235,8 +239,8 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
   endif()
   if(APPLE)
     # Check AppleClang requires cmake>=3.0 and set CMP0025 to NEW. FIXME: It's still Clang with ios toolchain file
-    if(NOT CMAKE_C_COMPILER_ID STREQUAL AppleClang) #headers with objc syntax, clang attributes error
-      if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL AppleClang) #headers with objc syntax, clang attributes error
+      if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
       else() # FIXME: gcc can not recognize clang attributes and objc syntax
       endif()
@@ -258,7 +262,7 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
       endif()
       if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
         if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7)
-          if(CMAKE_C_COMPILER_ID STREQUAL AppleClang)
+          if(CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)
               message("Apple clang does not support c++${CMAKE_CXX_STANDARD} for macOS 10.6")
           endif()
         else()
@@ -352,7 +356,7 @@ if(ANDROID)
   endif()
   endif(ANDROID_TOOLCHAIN_NAME)
   # TODO: compiler-rt
-  if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_C_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
+  if(ANDROID_STL MATCHES "^c\\+\\+_" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") #-stdlib does not support gnustl
     # g++ has no -stdlib option. clang default stdlib is -lstdc++. we change it to libc++ to avoid linking against libstdc++
     # -stdlib=libc++ will find libc++.so, while android ndk has no such file. libc++.a is a linker script. Seems can be used for shared libc++
     #file(WRITE ${CMAKE_BINARY_DIR}/libc++.so "INPUT(-lc++_shared)") # SEARCH_DIR() is only valid for -Wl,-T
@@ -421,6 +425,10 @@ if(NO_EXCEPTIONS)
     #add_link_flags_if_supported(-d2:-FH4-)
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+    if(CMAKE_CXX_COMPILER_ID MATCHES Clang AND LIBCXX_COMPAT) # no harm even for gnustl
+# apple clang, android, linux
+      add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_AVAILABILITY_HAS_NO_VERBOSE_ABORT=1>)
+    endif()
   endif()
 endif()
 
