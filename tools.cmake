@@ -46,6 +46,7 @@ option(USE_BITCODE "Enable bitcode for Apple" OFF)
 option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
 option(MIN_SIZE "Reduce size further for clang" OFF)
 option(USE_CFGUARD "Enable control flow guard" ON)
+option(USE_MOLD "Use mold linker" OFF) # smaller binary for apple
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -274,6 +275,9 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
   endif()
 endif()
 
+if(USE_MOLD)
+  add_link_options(-fuse-ld=mold)
+endif()
 if(MSVC AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 19.0.23918.0) #update2
   add_compile_options(-utf-8)  # no more codepage warnings
 endif()
