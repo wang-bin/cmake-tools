@@ -526,6 +526,7 @@ endif()
 # If parallel lto is not supported, fallback to single job lto
 if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
 # -fwhole-program-vtables
+  unset(HAVE_LTO CACHE)
   if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC) # -GL is ignored by clang-cl
     set(LTO_CFLAGS "-GL")
     set(LTO_LFLAGS "-LTCG -IGNORE:4075")
@@ -539,8 +540,8 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
     else()
       if(USE_LTO GREATER 0)
         set(CPUS ${USE_LTO})
-      elseif(USE_LTO STREQUAL thin)
-        set(LTO_FLAGS "-flto=thin") #TODO: -Wa,--noexecstack warning on android. https://github.com/android-ndk/ndk/issues/776#issuecomment-415577082
+      elseif(USE_LTO STREQUAL thin OR USE_LTO STREQUAL full)
+        set(LTO_FLAGS "-flto=${USE_LTO}") #TODO: -Wa,--noexecstack warning on android. https://github.com/android-ndk/ndk/issues/776#issuecomment-415577082
         set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
         check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_THIN)
@@ -574,10 +575,12 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
   endif()
   if(LTO_CFLAGS)
     add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${LTO_CFLAGS}>) # flags are not recoginzed by nasm
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LTO_LFLAGS}")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LTO_LFLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LTO_LFLAGS}")
+    add_link_options(${LTO_LFLAGS})
     # gcc-ar, gcc-ranlib
+  endif()
+  # thin: LLVM ERROR: Unexistent dir: 'lto.o'
+  if(APPLE AND NOT USE_LTO STREQUAL thin) # required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
+    add_link_options(-Wl,-object_path_lto,lto.o)
   endif()
 endif()
 
