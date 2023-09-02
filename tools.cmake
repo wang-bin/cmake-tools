@@ -587,11 +587,6 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
     add_link_options(${LTO_LFLAGS})
     # gcc-ar, gcc-ranlib
   endif()
-  if(APPLE) # required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
-# full lto: can be an object file, e.g. lto.o. thin lto: must be an existing dir, lto objects will be create there
-# FIXME: debug map object file has changed when adding debug points
-    add_link_options(-Wl,-object_path_lto,${CMAKE_CURRENT_BINARY_DIR})
-  endif()
 endif()
 
 
@@ -661,12 +656,14 @@ function(mkdsym tgt)
     return()
   endif()
   if(APPLE)
-# no dSYM for lto, dsymutil:
-# warning: (x86_64) /tmp/lto.o unable to open object file: No such file or directory
-# warning: no debug symbols in executable (-arch x86_64)
+# required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
+# full lto: can be an object file, e.g. lto.o. thin lto: must be an existing dir, lto objects will be create there
+# MUST use a unique dir for each tgt, otherwise may be overwritten: debug map object file has changed when adding debug points
+    target_link_options(${tgt} PRIVATE -Wl,-object_path_lto,$<TARGET_FILE_DIR:${tgt}>)
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
       COMMAND strip -u -r $<TARGET_FILE:${tgt}>
+      COMMAND rm -f $<TARGET_FILE_DIR:${tgt}>/*lto.o  # thin: [0-9]*.x86_64.thinlto.o; full: lto.o
       )
     return()
   endif()
