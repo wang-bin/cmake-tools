@@ -403,6 +403,11 @@ endif()
 if(MIN_SIZE AND CMAKE_BUILD_TYPE MATCHES MinSizeRel AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
   add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Xclang;-Oz>")
 endif()
+if(MIN_SIZE AND MSVC AND (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo))
+# -Os smaller release 18%, even smaller than MinSizeRel: https://github.com/microsoft/STL/pull/2708/files
+  add_compile_options(-Os)
+endif()
+
 if(NO_RTTI)
   if(MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
