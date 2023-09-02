@@ -74,7 +74,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 
 if(NOT CMAKE_C_COMPILER)
   set(CLANG_FULL_NAMES)
-  foreach(ver RANGE 17 7 -1)
+  foreach(ver RANGE 18 7 -1)
     list(APPEND CLANG_FULL_NAMES clang-${ver})
   endforeach()
   list(APPEND CLANG_FULL_NAMES clang-6.0 clang-5.0 clang-4.0 clang)
