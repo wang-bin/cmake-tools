@@ -587,9 +587,9 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
     add_link_options(${LTO_LFLAGS})
     # gcc-ar, gcc-ranlib
   endif()
-  # thin: LLVM ERROR: Unexistent dir: 'lto.o'
-  if(APPLE AND NOT USE_LTO STREQUAL thin) # required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
-    add_link_options(-Wl,-object_path_lto,lto.o)
+  if(APPLE) # required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
+# full lto: can be an object file, e.g. lto.o. thin lto: must be an existing dir, lto objects will be create there
+    add_link_options(-Wl,-object_path_lto,${CMAKE_CURRENT_BINARY_DIR})
   endif()
 endif()
 
