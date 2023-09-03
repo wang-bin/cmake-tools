@@ -44,7 +44,7 @@ option(LIBCXX_COMPAT "compatible with legacy libc++, supports new header from to
 option(USE_ARC "Enable ARC for ObjC/ObjC++" ON)
 option(USE_BITCODE "Enable bitcode for Apple" OFF)
 option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
-option(MIN_SIZE "Reduce size further for clang" OFF)
+option(MIN_SIZE "Reduce size further for clang MinSizeRel or MSVC Release" OFF)
 option(USE_CFGUARD "Enable control flow guard" ON)
 option(USE_MOLD "Use mold linker" OFF) # smaller binary for apple
 
@@ -405,7 +405,7 @@ if(MIN_SIZE AND CMAKE_BUILD_TYPE MATCHES MinSizeRel AND CMAKE_C_COMPILER_ID MATC
 endif()
 if(MIN_SIZE AND MSVC AND (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo))
 # -Os smaller release 18%, even smaller than MinSizeRel: https://github.com/microsoft/STL/pull/2708/files
-  add_compile_options(-Os)
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Os>")
 endif()
 
 if(NO_RTTI)
@@ -659,6 +659,7 @@ function(mkdsym tgt)
 # required by dSYM: https://github.com/conda-forge/gdb-feedstock/pull/23/#issuecomment-643008755
 # full lto: can be an object file, e.g. lto.o. thin lto: must be an existing dir, lto objects will be create there
 # MUST use a unique dir for each tgt, otherwise may be overwritten: debug map object file has changed when adding debug points
+# TODO: if USE_LTO or get_target_property(${tgt} INTERPROCEDURAL_OPTIMIZATION IPO)
     target_link_options(${tgt} PRIVATE -Wl,-object_path_lto,$<TARGET_FILE_DIR:${tgt}>)
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
