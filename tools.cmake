@@ -790,6 +790,8 @@ function(set_rpath)
   endif()
   cmake_parse_arguments(RPATH "" "" "DIRS;TARGET" ${ARGN}) #ARGV?
   test_lflags(RPATH_FLAGS "-Wl,--enable-new-dtags")
+  set(RPATH_FLAGS_LIST ${RPATH_FLAGS})
+  set(LD_RPATH "-Wl,-rpath,")
 # Executable dir search: ld -z origin, g++ -Wl,-R,'$ORIGIN', in makefile -Wl,-R,'$$ORIGIN'
 # Working dir search: "."
 # mac: install_name @rpath/... will search paths set in rpath link flags
@@ -801,18 +803,28 @@ function(set_rpath)
     endif()
     # -install_name @rpath/... is set by cmake
   else()
-    list(APPEND RPATH_DIRS "$ORIGIN" "$ORIGIN/lib" "$ORIGIN/../lib" "$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
+    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
+    list(APPEND RPATH_FLAGS_LIST -Wl,-z,origin)
+  endif()
+  foreach(p ${RPATH_DIRS})
+    set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
+    list(APPEND RPATH_FLAGS_LIST ${LD_RPATH}\"${p}\")
+  endforeach()
+  #set(CMAKE_INSTALL_RPATH "${RPATH_DIRS}")
+  #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
+  #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
+  if(RPATH_TARGET AND IOS)
+    get_target_property(tgt_reloc ${RPATH_TARGET} RELOCATABLE)
+    if(NOT IOS OR NOT tgt_reloc) # iOS: -rpath can only be used when creating a dynamic final linked image
+      #target_link_options(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST}) #3.13
+      target_link_libraries(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST})
+    endif()
+  elseif(NOT IOS) # iOS: -rpath can only be used when creating a dynamic final linked image
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
   endif()
-  set_target_properties(${RPATH_TARGET}
-    PROPERTIES
-    BUILD_RPATH_USE_ORIGIN TRUE
-    BUILD_RPATH "${RPATH_DIRS}"
-    INSTALL_RPATH "${RPATH_DIRS}"
-    )
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
 endfunction()
 
 
