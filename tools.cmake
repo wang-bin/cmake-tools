@@ -179,10 +179,18 @@ if(NOT OS)
     if(MACCATALYST)
       set(OS macCatalyst)
     elseif(IOS)
-      set(OS iOS)
+      if(CMAKE_OSX_SYSROOT MATCHES "Simulator")
+        set(OS iOSSimulator)
+      else()
+        set(OS iOS)
+      endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL tvOS)
       set(TVOS 1)
-      set(OS tvOS)
+      if(CMAKE_OSX_SYSROOT MATCHES "Simulator")
+        set(OS tvOSSimulator)
+      else()
+        set(OS tvOS)
+      endif()
     else()
       set(OS macOS)
     endif()
@@ -862,7 +870,6 @@ function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
     endif()
     #]=]
   endif()
-
   install(TARGETS ${tgt}
     EXPORT ${tgt}-targets
     RUNTIME DESTINATION bin
