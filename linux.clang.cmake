@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2023, Wang Bin
+# Copyright (c) 2017-2024, Wang Bin
 #
 # clang + lld to cross build apps for linux
 #
@@ -11,64 +11,22 @@
 # CMAKE_SYSTEM_PROCESSOR: REQUIRED
 # USE_CRT: gnu(default), musl
 
+include(${CMAKE_CURRENT_LIST_DIR}/linux.cmake)
+
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" ON)
+option(USE_LIBCXX_STATIC "use static libc++ instead of shared" OFF)
 option(USE_LIBCXX "use libc++ instead of libstdc++" OFF)
 option(USE_CXXABI "can be c++abi, stdc++ and supc++. Only required if libc++ is built with none abi" OFF) # default value must be bool
 option(USE_TARGET_LIBCXX "libc++ headers bundled with clang are searched and used by default. usually safe if abi is stable. set to true to use target libc++ if version is different" OFF)
 option(USE_COMPILER_RT "use compiler-rt instead of libgcc as compiler runtime library" OFF)
 option(USE_STD_TLS "use std c++11 thread_local. Only libc++abi 4.0+ is safe for any libc runtime. Turned off internally when necessary" ON) # sunxi ubuntu12.04(glibc-2.15)/rpi(glibc2.13) libc is too old to have __cxa_thread_atexit_impl(requires glibc2.18)
-option(USE_STDCXX "libstdc++ version to use, MUST be >= 4.8. default is 0, selected by compiler" 0)
-
-if(NOT OS)
-  set(OS Linux)
+if(USE_LIBCXX_STATIC)
+  set(USE_LIBCXX ON)
 endif()
-set(CMAKE_SYSTEM_NAME Linux) # assume host build if not set, host flags will be used, e.g. apple clang flags are added on macOS
-if(NOT CMAKE_SYSTEM_PROCESSOR)
-  message("CMAKE_SYSTEM_PROCESSOR for target is not set. Must be aarch64(arm64), armv7(arm), x86(i386,i686), x64(x86_64). Assumeme build for host arch: ${CMAKE_HOST_SYSTEM_PROCESSOR}.")
-  set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
-endif()
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "[aA].*[rR].*64") # arm64, aarch64
-  set(TRIPLE_ARCH aarch64)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm.*hf") # armhf, armv7hf, armv6kzhf
-  string(REPLACE "hf" "" __MARCH "${CMAKE_SYSTEM_PROCESSOR}")
-  if(NOT ${__MARCH} STREQUAL "arm")
-    add_compile_options(-march=${__MARCH})
-  endif()
-  set(TRIPLE_ARCH arm) # will affect lib dir search, e.g. /lib/${TRIPLE_ARCH}-linux-gnueabihf
-  set(TRIPLE_ABI eabihf) # armhf: -mfloat-abi=hard
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-  set(TRIPLE_ARCH arm) # will affect lib dir search, e.g. /lib/${TRIPLE_ARCH}-linux-gnueabihf
-  set(TRIPLE_ABI eabi) # armel: -mfloat-abi=soft -mfloat-abi=softfp
-  if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm" AND NOT LINUX_FLAGS MATCHES "-march=")
-    add_compile_options(-march=${CMAKE_SYSTEM_PROCESSOR})
-  endif()
-  if(LINUX_FLAGS MATCHES "-mfloat-abi=hard")
-    set(TRIPLE_ABI eabihf) # TARGET_TRIPPLE will affect lib dir search
-  endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "64")
-  set(TRIPLE_ARCH x86_64)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "86")
-  set(TRIPLE_ARCH i386)
-endif()
-if(NOT DEFINED USE_CRT) # can be gnu, musl
-  set(USE_CRT gnu)
-endif()
-if(NOT "${USE_CRT}" STREQUAL "")
-  set(TARGET_ABI "-${USE_CRT}${TRIPLE_ABI}")
-endif()
-# arch[sub][-vendor]-sys[-abi]
-set(TARGET_TRIPPLE ${TRIPLE_ARCH}${TARGET_VENDOR}-linux${TARGET_ABI})
-set(LINUX_FLAGS "--target=${TARGET_TRIPPLE} ${LINUX_FLAGS}")
-
-set(CMAKE_LIBRARY_ARCHITECTURE ${TARGET_TRIPPLE}) # FIND_LIBRARY search subdir
 # "/usr/local/opt/llvm/bin/ld.lld" --sysroot=/Users/wangbin/dev/rpi/sysroot -pie -X --eh-frame-hdr -m armelf_linux_eabi -dynamic-linker /lib/ld-linux-armhf.so.3 -o test/audiodec /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/Scrt1.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crti.o /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtbeginS.o -L/Users/wangbin/dev/rpi/sysroot/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib/../lib -L/Users/wangbin/dev/rpi/sysroot/lib -L/Users/wangbin/dev/rpi/sysroot/usr/lib --build-id --as-needed --gc-sections --enable-new-dtags -z origin "-rpath=\$ORIGIN" "-rpath=\$ORIGIN/lib" -rpath-link /Users/wangbin/dev/multimedia/mdk/external/lib/rpi/armv6 test/CMakeFiles/audiodec.dir/audiodec.cpp.o libmdk.so.0.1.0 -lc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /Users/wangbin/dev/rpi/sysroot/lib/../lib/crtendS.o /Users/wangbin/dev/rpi/sysroot/usr/lib/../lib/crtn.o
 
 # Export configurable variables for the try_compile() command. Or set env var like llvm
-set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
-  CMAKE_SYSTEM_PROCESSOR
-  CMAKE_C_COMPILER # find_program only once
-  LINUX_FLAGS
-  #LINUX_SYSROOT
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   LD_LLD
 )
 
@@ -140,27 +98,9 @@ execute_process(
 )
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 
-# Sysroot.
-#message("CMAKE_SYSROOT_COMPILE: ${CMAKE_SYSROOT_COMPILE}, ${CMAKE_CROSSCOMPILING}")
-if(EXISTS "${LINUX_SYSROOT}")
-  set(CMAKE_SYSROOT ${LINUX_SYSROOT})
-# CMake 3.9 tries to use CMAKE_SYSROOT_COMPILE before it gets set from CMAKE_SYSROOT, which leads to using the system's /usr/include. Set this manually.
-# https://github.com/android-ndk/ndk/issues/467
-  set(CMAKE_SYSROOT_COMPILE "${CMAKE_SYSROOT}")
-endif()
-if(CMAKE_CROSSCOMPILING) # default is true
-  set(ENV{PKG_CONFIG_PATH} "${CMAKE_SYSROOT}/usr/share/pkgconfig:${CMAKE_SYSROOT}/usr/lib/${TARGET_TRIPPLE}/pkgconfig")
-endif()
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
-file(GLOB_RECURSE _LIBSTDCXX_SOS LIST_DIRECTORIES false "${CMAKE_SYSROOT}/usr/lib/gcc/${TARGET_TRIPPLE}/*/libstdc++.so")
-if(_LIBSTDCXX_SOS)
-  list(GET _LIBSTDCXX_SOS -1 LIBSTDCXX_SO)
-endif()
-if(USE_LIBCXX)
+add_compile_options(--target=${TARGET_TRIPPLE})
+add_link_options(--target=${TARGET_TRIPPLE})
+if(USE_LIBCXX OR USE_LIBCXX_STATIC)
   if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
   # headers in clang builtin include dir(stddef.h etc.). -nobuiltininc makes cross build harder if a header is not found in sysroot(include_next stddef.h in /usr/include/linux/)
     # -nostdinc++: clang always search libc++(-stdlib=libc++) in host toolchain, may mismatch with target libc++ version, and results in conflict(include_next)
@@ -227,13 +167,26 @@ if(USE_LIBCXX)
   #if(USE_STD_TLS AND NOT HAS__cxa_thread_atexit_impl EQUAL -1) # AND c++abi is none or libc++abi<4.0, then __cxa_thread_atexit generated by clang(for thread_local) can be replaced by __cxa_thread_atexit_impl
   #  link_libraries(-Wl,-defsym,__cxa_thread_atexit=__cxa_thread_atexit_impl) # libc++ abi is not libc++abi, e.g. stdc++/supc++ abi. clang generated __cxa_thread_atexit is defined in libc++abi 4.0+
   #endif()
+  if(USE_LIBCXX_STATIC)
+# CMAKE_CXX_COMPILER_VERSION is not available yet
+    #string(REGEX MATCH "([0-9]*)\\.([0-9]*)\\.([0-9]*)" matched ${CMAKE_CXX_COMPILER_VERSION})
+    #set(_CC_MAJOR ${CMAKE_MATCH_1})
+    execute_process(
+        COMMAND sh -c "echo __clang_major__ | ${CMAKE_C_COMPILER}  -E -x c - | tail -n 1"
+        OUTPUT_VARIABLE _CLANG_MAJOR_
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+# libc++ __cxa_thread_atexit_impl@GLIBC_2.18 is not weak, llvm-objcopy --weaken-symbol=name file to set weak for a static lib or obj to targeting glibc2.17
+    add_link_options(-stdlib=libc++ -static-libstdc++ -l:libc++abi.a -resource-dir=${CMAKE_SYSROOT}/usr/lib/llvm-${_CLANG_MAJOR_}/lib/clang/${_CLANG_MAJOR_} -Wl,--allow-shlib-undefined)
+  endif()
 else() # gcc files can be found by clang
   if(NOT USE_STDCXX VERSION_LESS 4.8)
-  # Selected GCC installation: always the last (greatest version), no way to change it
+# Selected GCC installation: always the last (greatest version), no way to change it
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>")
     #file(GLOB_RECURSE CXX_DIRS LIST_DIRECTORIES true "${CMAKE_SYSROOT}/usr/include/*c++") # c++ is dir, so LIST_DIRECTORIES must be true (false by default for GLOB_RECURSE)
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CMAKE_SYSROOT}/usr/include/c++/${USE_STDCXX}>") # no space after -cxx-isystem
-    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CMAKE_SYSROOT}/usr/include/${TARGET_TRIPPLE}/c++/${USE_STDCXX}>") # no space after -cxx-isystem
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CXXCONFIG_H_DIR}>") # no space after -cxx-isystem
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-cxx-isystem${CMAKE_SYSROOT}/usr/include/c++/${USE_STDCXX}/backward>") # c++. no space after -cxx-isystem
   endif()
 endif()
 
@@ -269,5 +222,3 @@ set(LD_LLD "${LD_LLD}" CACHE INTERNAL "${LD_LLD} as linker" FORCE)
 # CMAKE_C_FLAGS_MINSIZEREL_INIT: will append -Os by cmake, which is not expected, and results in lto link error
 set(CMAKE_C_FLAGS_MINSIZEREL "-Xclang -Oz -DNDEBUG") # -Xclang is required because c/c++ flags is passed to linker and not recognized by linker(-O1/2 is ok, -Os/z is not)
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Xclang -Oz -DNDEBUG")
-
-set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)

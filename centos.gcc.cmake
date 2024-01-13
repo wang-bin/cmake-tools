@@ -1,7 +1,7 @@
 set(CENTOS 1)
 set(USE_CRT "")
 set(TARGET_VENDOR -redhat)
-include(${CMAKE_CURRENT_LIST_DIR}/linux.clang.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/linux.gcc.cmake)
 
 set(CMAKE_SYSTEM_VERSION "${RHEL_MAJOR}.${RHEL_MINOR}")
 
