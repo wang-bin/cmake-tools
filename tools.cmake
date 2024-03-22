@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2023, Wang Bin
+# Copyright (c) 2017-2024, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -151,6 +151,7 @@ endif()
 
 if(MSVC AND NOT CMAKE_CXX_SIMULATE_ID MATCHES MSVC AND NOT WIN_VER_HEX)
 # cmake3.10 does not define _WIN32_WINNT even if CMAKE_SYSTEM_VERSION is set? only set for msvc cl
+# vs geberator set CMAKE_SYSTEM_VERSION to host os version?
   macro(dec_to_hex VAR VAL)
     if (${VAL} LESS 10)
       SET(${VAR} ${VAL})
@@ -187,9 +188,24 @@ if(NOT OS)
     elseif(CMAKE_SYSTEM_NAME STREQUAL tvOS)
       set(TVOS 1)
       if(CMAKE_OSX_SYSROOT MATCHES "Simulator")
-        set(OS tvOSSimulator)
+        set(OS ${CMAKE_SYSTEM_NAME}Simulator)
       else()
-        set(OS tvOS)
+        set(OS ${CMAKE_SYSTEM_NAME})
+      endif()
+    elseif(CMAKE_SYSTEM_NAME STREQUAL watchOS)
+      set(WATCHOS 1)
+      if(CMAKE_OSX_SYSROOT MATCHES "Simulator")
+        set(OS ${CMAKE_SYSTEM_NAME}Simulator)
+      else()
+        set(OS ${CMAKE_SYSTEM_NAME})
+      endif()
+    elseif(CMAKE_SYSTEM_NAME STREQUAL visionOS)
+      set(XROS 1)
+      set(VISIONOS 1)
+      if(CMAKE_OSX_SYSROOT MATCHES "Simulator")
+        set(OS ${CMAKE_SYSTEM_NAME}Simulator)
+      else()
+        set(OS ${CMAKE_SYSTEM_NAME})
       endif()
     else()
       set(OS macOS)
@@ -258,9 +274,13 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
       endif()
     endif()
     # CMAKE_OSX_DEPLOYMENT_TARGET is set to host os version by cmake if not set by user
-    if(IOS)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
       if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-        set(CMAKE_OSX_DEPLOYMENT_TARGET 8.0)
+        if(CMAKE_SYSTEM_NAME STREQUAL visionOS)
+          set(CMAKE_OSX_DEPLOYMENT_TARGET 1.0)
+        else()
+          set(CMAKE_OSX_DEPLOYMENT_TARGET 8.0)
+        endif()
       endif()
     else()
       if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
@@ -447,7 +467,7 @@ if(NO_EXCEPTIONS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     if(CMAKE_CXX_COMPILER_ID MATCHES Clang AND LIBCXX_COMPAT) # no harm even for gnustl
 # apple clang, android, linux
-      add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_AVAILABILITY_HAS_NO_VERBOSE_ABORT=1>)
+      #add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_VERBOSE_ABORT\(...\)=__builtin_abort\(\)>)
     endif()
   endif()
 endif()
@@ -531,7 +551,7 @@ if(NOT MSVC) # clang-cl just ignore these
 # TODO: gcc -fdce
   add_link_flags_if_supported(
     -Wl,--no-allow-shlib-undefined
-    -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'
+    -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'. will omit elf weak symbol libs
     -Wl,-z,defs # do not allow undefined symbols in shared library targets
     )
 endif()
@@ -806,7 +826,7 @@ function(set_rpath)
   if(APPLE)
 # https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
     list(APPEND RPATH_DIRS @loader_path/Libraries @loader_path @executable_path/../Frameworks) # macOS 10.4 does not support rpath, and only supports executable_path, so use loader_path only is enough
-    if(NOT IOS AND NOT MACCATALYST)
+    if(CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT MACCATALYST)
       list(APPEND RPATH_DIRS  /opt/homebrew/lib /usr/local/lib)
     endif()
     # -install_name @rpath/... is set by cmake
@@ -822,13 +842,13 @@ function(set_rpath)
   #set(CMAKE_INSTALL_RPATH "${RPATH_DIRS}")
   #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
   #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
-  if(RPATH_TARGET AND IOS)
+  if(RPATH_TARGET AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
     get_target_property(tgt_reloc ${RPATH_TARGET} RELOCATABLE)
-    if(NOT IOS OR NOT tgt_reloc) # iOS: -rpath can only be used when creating a dynamic final linked image
+    if(NOT tgt_reloc) # iOS: -rpath can only be used when creating a dynamic final linked image
       #target_link_options(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST}) #3.13
       target_link_libraries(${RPATH_TARGET} PRIVATE ${RPATH_FLAGS_LIST})
     endif()
-  elseif(NOT IOS) # iOS: -rpath can only be used when creating a dynamic final linked image
+  elseif(NOT APPLE OR CMAKE_SYSTEM_NAME STREQUAL Darwin) # iOS: -rpath can only be used when creating a dynamic final linked image
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${RPATH_FLAGS}" PARENT_SCOPE)
   endif()
@@ -848,7 +868,7 @@ function(setup_deploy tgt) # TODO: TARGETS(dso, static), HEADERS, HEADERS_DIR
   if(APPLE)
     # macOS SHARED_LIBRARY only
     get_target_property(TYPE ${tgt} TYPE)
-    if(TYPE STREQUAL SHARED_LIBRARY AND NOT IOS AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
+    if(TYPE STREQUAL SHARED_LIBRARY AND CMAKE_SYSTEM_NAME STREQUAL Darwin AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7) # check host os?
       add_custom_command(TARGET ${tgt} POST_BUILD
         COMMAND install_name_tool -change /usr/lib/libc++.1.dylib @rpath/libc++.1.dylib $<TARGET_FILE:${tgt}>
       )
