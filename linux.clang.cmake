@@ -98,7 +98,7 @@ execute_process(
 )
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 
-add_compile_options(--target=${TARGET_TRIPPLE})
+add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,ASM>:--target=${TARGET_TRIPPLE}>) # if no COMPILE_LANGUAGE, will add to nasm and error. ASM is required to compile arm asm by clang
 add_link_options(--target=${TARGET_TRIPPLE})
 if(USE_LIBCXX OR USE_LIBCXX_STATIC)
   if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
