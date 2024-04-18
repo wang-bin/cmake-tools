@@ -553,7 +553,7 @@ if(NOT MSVC) # clang-cl just ignore these
 # TODO: gcc -fdce
   add_link_flags_if_supported(
     -Wl,--no-allow-shlib-undefined
-    -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'. will omit elf weak symbol libs
+    -Wl,--as-needed  # not supported by 'opensource clang+apple ld64'. # FIXME: will omit elf weak symbol libs
     -Wl,-z,defs # do not allow undefined symbols in shared library targets
     )
 endif()
@@ -632,9 +632,13 @@ if(SANITIZE)
   #set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
   #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined,integer,nullability -fsanitize-address-use-after-scope")
   add_compile_options(-fno-omit-frame-pointer -fno-optimize-sibling-calls -funwind-tables -fsanitize=address,undefined)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+  set(SANITIZE_LFLAGS -fsanitize=address,undefined)
+  if(CMAKE_C_COMPILER_ID MATCHES Clang)
+    set(SANITIZE_LFLAGS "${SANITIZE_LFLAGS} -shared-libasan") # undefined __asan_memset etc. on linux if no -shared-libasan
+  endif()
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SANITIZE_LFLAGS}")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SANITIZE_LFLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SANITIZE_LFLAGS}")
 endif()
 if(COVERAGE)
   if(CMAKE_C_COMPILER_ID STREQUAL GNU)

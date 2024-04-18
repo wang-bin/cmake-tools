@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018-2023, Wang Bin
+# Copyright (c) 2018-2024, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
