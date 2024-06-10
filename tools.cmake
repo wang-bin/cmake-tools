@@ -47,6 +47,7 @@ option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
 option(MIN_SIZE "Reduce size further for clang MinSizeRel or MSVC Release" OFF)
 option(USE_CFGUARD "Enable control flow guard" ON)
 option(USE_MOLD "Use mold linker" OFF) # smaller binary for apple
+option(VCRT_MAX_COMPATIBILITY "keep compatible with old vcruntime/msvcp" ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -441,6 +442,12 @@ if(MIN_SIZE AND MSVC AND (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE M
   add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Os>")
 endif()
 
+if(MSVC)
+  if(VCRT_MAX_COMPATIBILITY)
+# building with 14.38+ breaks std::mutex
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR=1>")
+  endif()
+endif()
 if(NO_RTTI)
   if(MSVC)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
@@ -474,16 +481,15 @@ if(NO_EXCEPTIONS)
   endif()
 endif()
 
-
+if(MSVC AND NOT OPT_REF_SET)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref,icf,lbr")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -opt:ref,icf,lbr")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref,icf,lbr")
+endif()
 if(USE_CFGUARD AND MSVC)
 # https://docs.microsoft.com/zh-cn/visualstudio/releasenotes/vs2015-rtm-vs#visual-c-performance-and-code-quality
   add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-guard:cf>) #-d2guard4: legacy flag for cl(vs<2015) # fix latest angle crash
   add_link_options(-guard:cf)
-  if(NOT OPT_REF_SET)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -opt:ref,icf,lbr")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -opt:ref,icf,lbr")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -opt:ref,icf,lbr")
-  endif()
 endif()
 if(USE_CFGUARD AND MINGW)
   add_compile_options_if_supported(-mguard=cf)
