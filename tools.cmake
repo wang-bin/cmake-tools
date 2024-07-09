@@ -47,7 +47,9 @@ option(USE_BITCODE_MARKER "Enable bitcode marker for Apple" OFF)
 option(MIN_SIZE "Reduce size further for clang MinSizeRel or MSVC Release" OFF)
 option(USE_CFGUARD "Enable control flow guard" ON)
 option(USE_MOLD "Use mold linker" OFF) # smaller binary for apple
-option(VCRT_MAX_COMPATIBILITY "keep compatible with old vcruntime/msvcp" ON)
+
+set(VCRT_ABI_VERSION 1420 CACHE STRING "target vcruntime version")
+set_property(CACHE VCRT_ABI_VERSION PROPERTY STRINGS 1400 1420 1440)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
@@ -443,9 +445,16 @@ if(MIN_SIZE AND MSVC AND (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE M
 endif()
 
 if(MSVC)
-  if(VCRT_MAX_COMPATIBILITY)
+  if(VCRT_ABI_VERSION VERSION_LESS 1440)
 # building with 14.38+ breaks std::mutex
+# https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR=1>")
+  endif()
+  if(VCRT_ABI_VERSION VERSION_LESS 1420)
+# does not work? https://developercommunity.visualstudio.com/t/vs-1660-dependency-on-vcruntime140-1dll-despite-sp/1059340#T-N1072951
+# vcruntime140_1.dll, used by c++ exception
+    add_cxx_flags_if_supported(-d2FH4-) # clang-cl does not support
+    add_link_flags_if_supported(-d2:-FH4-)
   endif()
 endif()
 if(NO_RTTI)
@@ -706,7 +715,7 @@ function(mkdsym tgt)
     target_link_options(${tgt} PRIVATE -Wl,-object_path_lto,$<TARGET_FILE_DIR:${tgt}>)
     add_custom_command(TARGET ${tgt} POST_BUILD
       COMMAND dsymutil $<TARGET_FILE:${tgt}># -o $<TARGET_FILE:${tgt}>.dSYM
-      COMMAND strip -u -r $<TARGET_FILE:${tgt}>
+      COMMAND strip -u -r $<TARGET_FILE:${tgt}> # will strip exported symbols too. llvm-strip can reduce size more
       COMMAND rm -f $<TARGET_FILE_DIR:${tgt}>/*lto.o  # thin: [0-9]*.x86_64.thinlto.o; full: lto.o
       )
     return()
