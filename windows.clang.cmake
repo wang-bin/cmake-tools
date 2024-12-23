@@ -122,6 +122,13 @@ if(CMAKE_C_COMPILER)
   endif()
   if(NOT CMAKE_LINKER)
     string(REGEX REPLACE "clang-cl(|-[0-9]+[\\.0]*)${_EXE}$" "lld-link\\1${_EXE}" LLD_LINK "${CMAKE_C_COMPILER}")
+    if(NOT EXISTS ${LLD_LINK}) # homebrew: lld not in llvm-19.1.6
+      execute_process(
+        COMMAND ${CMAKE_C_COMPILER} -print-prog-name=lld-link
+        OUTPUT_VARIABLE LLD_LINK
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    endif()
     set(CMAKE_LINKER ${LLD_LINK} CACHE FILEPATH "")
     message("CMAKE_LINKER:${CMAKE_LINKER}")
   endif()
