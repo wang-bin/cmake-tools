@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018-2024, Wang Bin
+# Copyright (c) 2018-2025, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
@@ -22,6 +22,7 @@
 # TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
 # TODO: msvc abi in gnu style: https://cmake.org/cmake/help/v3.15/release/3.15.html#compilers
 # TODO: guess WINSDK_VER from sdk dir
+# TODO: hybrid crt: -MT -NODEFAULTLIB:libucrt.lib -DEFAULTLIB:ucrt.lib
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
@@ -73,6 +74,9 @@ macro(dec_to_hex VAR VAL)
 endmacro(dec_to_hex)
 if(NOT CMAKE_SYSTEM_VERSION)
   set(CMAKE_SYSTEM_VERSION 6.0) # default is latest(10.0) set by windows.h
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "[aA].*[rR].*64")
+    set(CMAKE_SYSTEM_VERSION 10.0)
+  endif()
 endif()
 string(REGEX MATCH "([0-9]*)\\.([0-9]*)" matched ${CMAKE_SYSTEM_VERSION})
 set(WIN_MAJOR ${CMAKE_MATCH_1})
@@ -102,7 +106,7 @@ endif()
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
   set(CLANG_FULL_NAMES)
-  foreach(ver RANGE 20 7 -1)
+  foreach(ver RANGE 21 7 -1)
     list(APPEND CLANG_FULL_NAMES clang-cl-${ver})
   endforeach()
   list(APPEND CLANG_FULL_NAMES clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl)
