@@ -27,7 +27,9 @@ endif()
 if(POLICY CMP0063) # visibility. since 3.3
   cmake_policy(SET CMP0063 NEW)
 endif()
-
+if(POLICY CMP0117) # disable /GR (rtti) for msvc. since 3.20
+  cmake_policy(SET CMP0117 NEW)
+endif()
 if(TOOLS_CMAKE_INCLUDED)
   return()
 endif()
@@ -52,7 +54,7 @@ set(VCRT_ABI_VERSION 1420 CACHE STRING "target vcruntime version")
 set_property(CACHE VCRT_ABI_VERSION PROPERTY STRINGS 1400 1420 1440)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden) # or target property <LANG>_VISIBILITY_PRESET
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
@@ -855,7 +857,11 @@ function(set_rpath)
     endif()
     # -install_name @rpath/... is set by cmake
   else()
-    list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
+    if(CMAKE_MAJOR_VERSION GREATER 3)
+        list(APPEND RPATH_DIRS "\\$$ORIGIN" "\\$$ORIGIN/lib" "\\$$ORIGIN/../lib" "\\$$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
+    else()
+        list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
+    endif()
     set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
     list(APPEND RPATH_FLAGS_LIST -Wl,-z,origin)
   endif()
