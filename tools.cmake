@@ -362,6 +362,10 @@ function(test_lflags var flags)
   endif()
 endfunction()
 
+if(CMAKE_SYSTEM_NAME STREQUAL OHOS)
+  add_compile_options(-Wno-unused-command-line-argument)
+endif()
+
 if(ANDROID)
   if(NOT ANDROID_NDK)
     if(CMAKE_ANDROID_NDK)
