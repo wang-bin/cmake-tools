@@ -248,6 +248,14 @@ if(NOT OS)
   endif()
 endif()
 
+if(OHOS)
+ # "--gcc-toolchain=" add by cmake
+ set(ARCH ${OHOS_ARCH})
+ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME 1)
+ add_compile_options(-Wno-unused-command-line-argument)
+ list(APPEND CMAKE_REQUIRED_FLAGS "-Wno-unused-command-line-argument") # for check_cxx_compiler_flag
+endif()
+
 if(WIN32)
   if(ARCH MATCHES 86_64 OR ARCH MATCHES AMD64)
     set(ARCH x64)
@@ -362,13 +370,6 @@ function(test_lflags var flags)
     set(${var} ${V} PARENT_SCOPE)
   endif()
 endfunction()
-
-if(CMAKE_SYSTEM_NAME STREQUAL OHOS)
- # "--gcc-toolchain=" add by cmake
- set(CMAKE_PLATFORM_NO_VERSIONED_SONAME 1)
- add_compile_options(-Wno-unused-command-line-argument)
- list(APPEND CMAKE_REQUIRED_FLAGS "-Wno-unused-command-line-argument") # for check_cxx_compiler_flag
-endif()
 
 if(ANDROID)
   if(NOT ANDROID_NDK)
@@ -847,7 +848,7 @@ endfunction()
 # set default rpath dirs and add user defined rpaths
 function(set_rpath)
 #CMAKE_SHARED_LIBRARY_RPATH_LINK_C_FLAG
-  if(WIN32 OR ANDROID)
+  if(WIN32 OR ANDROID OR OHOS)
     return()
   endif()
   cmake_parse_arguments(RPATH "" "" "DIRS;TARGET" ${ARGN}) #ARGV?
