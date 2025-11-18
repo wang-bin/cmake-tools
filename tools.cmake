@@ -365,8 +365,9 @@ endfunction()
 
 if(CMAKE_SYSTEM_NAME STREQUAL OHOS)
  # "--gcc-toolchain=" add by cmake
-  add_compile_options(-Wno-unused-command-line-argument)
-  list(APPEND CMAKE_REQUIRED_FLAGS "-Wno-unused-command-line-argument") # for check_cxx_compiler_flag
+ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME 1)
+ add_compile_options(-Wno-unused-command-line-argument)
+ list(APPEND CMAKE_REQUIRED_FLAGS "-Wno-unused-command-line-argument") # for check_cxx_compiler_flag
 endif()
 
 if(ANDROID)
