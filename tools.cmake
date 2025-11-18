@@ -87,11 +87,11 @@ if(NOT RPI)
     message("Raspberry Pi cross build: ${CMAKE_CROSSCOMPILING}")
   endif()
 endif()
-
+message("CMAKE_C_COMPILER_ARCHITECTURE_ID: ${CMAKE_C_COMPILER_ARCHITECTURE_ID}")
 if(NOT ARCH)
 # cmake only probes compiler arch for msvc as it's 1 toolchain per arch. we can probes other compilers like msvc, but multi arch build(clang for apple) is an exception
 # here we simply use cmake vars with some reasonable assumptions
-  set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID
+  set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID. 4.1+ support most platforms
   if(NOT ARCH)
     set(ARCH ${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}) # if languages has no c but c++, e.g. flutter generated projects
   endif()
@@ -103,6 +103,7 @@ if(NOT ARCH)
     endif()
   endif()
 endif()
+# TODO: cmake4.1+ linux arch
 
 if(WIN32 AND NOT WINDOWS_PHONE AND NOT WINDOWS_STORE)
   set(WINDOWS_DESKTOP 1)
@@ -363,7 +364,9 @@ function(test_lflags var flags)
 endfunction()
 
 if(CMAKE_SYSTEM_NAME STREQUAL OHOS)
+ # "--gcc-toolchain=" add by cmake
   add_compile_options(-Wno-unused-command-line-argument)
+  list(APPEND CMAKE_REQUIRED_FLAGS "-Wno-unused-command-line-argument") # for check_cxx_compiler_flag
 endif()
 
 if(ANDROID)
