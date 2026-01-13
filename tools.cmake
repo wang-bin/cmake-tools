@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2017-2024, Wang Bin
+# Copyright (c) 2017-2026, Wang Bin
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -56,6 +56,8 @@ set_property(CACHE VCRT_ABI_VERSION PROPERTY STRINGS 1400 1420 1440)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden) # or target property <LANG>_VISIBILITY_PRESET
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_OBJC_VISIBILITY_PRESET hidden)
+set(CMAKE_OBJCXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 include(CMakeParseArguments)
@@ -346,7 +348,7 @@ if(HAVE_WUNUSED)
   add_compile_options(-Wunused)
 endif()
 if(APPLE AND USE_ARC)
-  add_compile_options($<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>) #FIXME: OBJC/OBJCXX not recognized
+  add_compile_options($<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>) # OBJC/OBJCXX not recognized if language is not enabled in project()
 endif()
 # TODO: set(MY_FLAGS "..."), disable_if(MY_FLAGS): test MY_FLAGS, set to empty if not supported
 # TODO: test_lflags(var, flags), enable_lflags(flags)
@@ -451,11 +453,11 @@ if(RPI)
 endif()
 
 if(MIN_SIZE AND CMAKE_BUILD_TYPE MATCHES MinSizeRel AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Xclang;-Oz>")
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-Xclang;-Oz>")
 endif()
 if(MIN_SIZE AND MSVC AND (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo))
 # -Os smaller release 18%, even smaller than MinSizeRel: https://github.com/microsoft/STL/pull/2708/files
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-Os>")
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-Os>")
 endif()
 
 if(MSVC)
@@ -479,8 +481,7 @@ if(NO_RTTI)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -GR-")
     endif()
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
-    #add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fno-rtti;-fno-exceptions>")
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX,OBJCXX>:-fno-rtti>)
   endif()
 endif()
 if(NO_EXCEPTIONS)
@@ -496,7 +497,9 @@ if(NO_EXCEPTIONS)
     #add_cxx_flags_if_supported(-d2FH4-)  #/d2FH4: FH4 vcruntime140_1. no effect?
     #add_link_flags_if_supported(-d2:-FH4-)
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+# disable c++ and objc++ arc exceptions
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX,OBJCXX>:-fno-exceptions>)
+    add_compile_options($<$<COMPILE_LANGUAGE:OBJCXX>:-fno-objc-arc-exceptions>)
     if(CMAKE_CXX_COMPILER_ID MATCHES Clang AND LIBCXX_COMPAT) # no harm even for gnustl
 # apple clang, android, linux
       #add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_VERBOSE_ABORT\(...\)=__builtin_abort\(\)>)
@@ -645,7 +648,7 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
     endif()
   endif()
   if(LTO_CFLAGS)
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${LTO_CFLAGS}>) # flags are not recoginzed by nasm
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:${LTO_CFLAGS}>) # flags are not recoginzed by nasm
     add_link_options(${LTO_LFLAGS})
     # gcc-ar, gcc-ranlib
   endif()

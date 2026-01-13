@@ -26,7 +26,7 @@ function(add_compile_options_if_supported)
     mangle_name("${flag}" flagname)
     check_cxx_compiler_flag("${WERROR} ${flag}" "C_CXX_SUPPORTS_${flagname}_FLAG") # c,c++
     if(${C_CXX_SUPPORTS_${flagname}_FLAG})
-      add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${flag}>)
+      add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:${flag}>)
     endif()
   endforeach()
 endfunction()
