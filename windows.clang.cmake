@@ -3,7 +3,7 @@
 #
 # The cmake-tools project is licensed under the new MIT license.
 #
-# Copyright (c) 2018-2025, Wang Bin
+# Copyright (c) 2018-2026, Wang Bin
 #
 # clang-cl + lld to cross build apps for windows. can be easily change to other target platforms
 # can not use clang --target=${ARCH}-none-windows-msvc because cmake assume it's cl if _MSC_VER is defined
@@ -22,7 +22,7 @@
 # TODO: mingw abi --target=${arch}-w64/pc-mingw32/windows-gnu
 # TODO: msvc abi in gnu style: https://cmake.org/cmake/help/v3.15/release/3.15.html#compilers
 # TODO: guess WINSDK_VER from sdk dir
-# TODO: hybrid crt: -MT -NODEFAULTLIB:libucrt.lib -DEFAULTLIB:ucrt.lib
+# TODO: hybrid crt: -MT -NODEFAULTLIB:libucrt.lib -DEFAULTLIB:ucrt.lib https://github.com/microsoft/FFmpegInterop/pull/313/files
 # non-windows host: clang-cl invokes link.exe by default, use -fuse-ld=lld works. but -Wl, /link, -Xlinker does not work
 option(CLANG_AS_LINKER "use clang as linker to invoke lld. MUST ON for now" OFF) # MUST use lld-link as CMAKE_LINKER on windows host, otherwise ms link.exe is used
 option(USE_CLANG_CL "use clang-cl for msvc abi, or clang for gnu abi, same as clang --driver-mode=cl/gnu" ON)
@@ -106,7 +106,7 @@ endif()
 # llvm-ar is not required to create static lib: lld-link /lib /machine:${WINSDK_ARCH}
 if(NOT CMAKE_C_COMPILER)
   set(CLANG_FULL_NAMES)
-  foreach(ver RANGE 22 7 -1)
+  foreach(ver RANGE 23 7 -1)
     list(APPEND CLANG_FULL_NAMES clang-cl-${ver})
   endforeach()
   list(APPEND CLANG_FULL_NAMES clang-cl-6.0 clang-cl-5.0 clang-cl-4.0 clang-cl)
@@ -229,7 +229,7 @@ endif()
 set(COMPILE_FLAGS #-Xclang -Oz #/EHsc
     --target=${TRIPLE_ARCH}-pc-windows-msvc # CMAKE_<LANG>_COMPILER_TARGET
     #-fms-extensions
-    #-fms-compatibility-version=19.15
+    #-fms-compatibility-version=19.20
     #-Werror=unknown-argument
     #-Zc:dllexportInlines- # TODO: clang-8 http://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
     -Zc:inline
@@ -373,6 +373,7 @@ endif()
 
 list(APPEND COMPILE_FLAGS -DUNICODE -D_UNICODE)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Windows) # WINRT is not set for try_compile
+# -ZW? https://learn.microsoft.com/en-us/cpp/build/reference/zw-windows-runtime-compilation?view=msvc-170
   if(NOT WINSDK_ARCH STREQUAL "arm") # TODO: -EHsc internal error for arm
       list(APPEND COMPILE_FLAGS -EHsc)
   endif()

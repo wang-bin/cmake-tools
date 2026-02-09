@@ -93,7 +93,7 @@ message("CMAKE_C_COMPILER_ARCHITECTURE_ID: ${CMAKE_C_COMPILER_ARCHITECTURE_ID}")
 if(NOT ARCH)
 # cmake only probes compiler arch for msvc as it's 1 toolchain per arch. we can probes other compilers like msvc, but multi arch build(clang for apple) is an exception
 # here we simply use cmake vars with some reasonable assumptions
-  set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID. 4.1+ support most platforms
+  set(ARCH ${CMAKE_C_COMPILER_ARCHITECTURE_ID}) # msvc only, MSVC_C_ARCHITECTURE_ID, or cmake 4.1+: gnu=aarch64,armv7,x86_64; vc=ARMV7 ARM64 X86 x64
   if(NOT ARCH)
     set(ARCH ${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}) # if languages has no c but c++, e.g. flutter generated projects
   endif()
