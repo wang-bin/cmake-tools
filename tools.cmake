@@ -63,6 +63,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 include(CMakeParseArguments)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
+include(CMakePushCheckState)
 include(${CMAKE_CURRENT_LIST_DIR}/add_flags.cmake NO_POLICY_SCOPE)
 
 # set CMAKE_SYSTEM_PROCESSOR, CMAKE_SYSROOT, CMAKE_<LANG>_COMPILER for cross build
@@ -227,7 +228,7 @@ if(NOT OS)
         set(CMAKE_OSX_ARCHITECTURES ${CMAKE_SYSTEM_PROCESSOR})
       endif()
       if(CMAKE_OSX_ARCHITECTURES MATCHES arm64)
-        set(OS_MIN 11.0)
+        set(OS_MIN 11.0) # FIXME: arm64+x86_64 should select lower
       endif()
     else()
     endif()
@@ -308,7 +309,7 @@ if(CMAKE_CXX_STANDARD AND NOT CMAKE_CXX_STANDARD LESS 11)
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
       if(CMAKE_OSX_ARCHITECTURES MATCHES arm64 AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 11.0)
-        set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0) # FIXME: mixed arch, lower version
       endif()
       if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
         if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.7)
@@ -616,28 +617,28 @@ if(USE_LTO) # with -Xclang -Oz (-plugin-opt=Oz/Os error)
         set(CPUS ${USE_LTO})
       elseif(USE_LTO STREQUAL thin OR USE_LTO STREQUAL full)
         set(LTO_FLAGS "-flto=${USE_LTO}") #TODO: -Wa,--noexecstack warning on android. https://github.com/android-ndk/ndk/issues/776#issuecomment-415577082
-        set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+        cmake_push_check_state()
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
         check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_THIN)
-        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+        cmake_pop_check_state()
         set(HAVE_LTO ${HAVE_LTO_THIN})
       else()
         cmake_host_system_information(RESULT CPUS QUERY NUMBER_OF_LOGICAL_CORES) #ProcessorCount
       endif()
       if(CPUS GREATER 1)
         set(LTO_FLAGS "-flto=${CPUS}") # parallel lto requires more memory and may fail to link
-        set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+        cmake_push_check_state()
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
         check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO_${CPUS})
-        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+        cmake_pop_check_state()
         set(HAVE_LTO ${HAVE_LTO_${CPUS}})
       endif()
       if(NOT HAVE_LTO) # android clang, icc etc.
         set(LTO_FLAGS "-flto")
-        set(CMAKE_REQUIRED_LIBRARIES_OLD ${CMAKE_REQUIRED_LIBRARIES})
+        cmake_push_check_state()
         set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} ${LTO_FLAGS}") # check_c_compiler_flag() does not check linker flags. CMAKE_REQUIRED_LIBRARIES scope is function local
         check_c_compiler_flag(${LTO_FLAGS} HAVE_LTO)
-        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_OLD})
+        cmake_pop_check_state()
       endif()
       if(HAVE_LTO) # android clang fails to use lto because of LLVMgold plugin is not found
         set(LTO_CFLAGS ${LTO_FLAGS})
