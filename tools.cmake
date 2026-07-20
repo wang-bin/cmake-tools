@@ -479,7 +479,10 @@ if(NO_RTTI)
     if(CMAKE_CXX_FLAGS MATCHES "/GR " OR CMAKE_CXX_FLAGS MATCHES "/GR$") #/GR is set by cmake, warnings if simply appending -GR-
       string(REPLACE "/GR" "-GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     else() # clang-cl
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -GR- -Xclang -fno-rtti")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -GR-")
+    endif()
+    if(CMAKE_CXX_SIMULATE_ID MATCHES MSVC)
+      add_compile_options(-Xclang -fno-rtti)
     endif()
     add_definitions(-D_HAS_STATIC_RTTI=0) # disable static typeid(used by function.target(), shared_ptr.get_deleter(), any)
   else()
