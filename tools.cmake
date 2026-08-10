@@ -445,6 +445,7 @@ if(ANDROID)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath-link,${ANDROID_PLATFORM_LIBS_DIR}")
   endif()
   # -Wl,--no-rosegment: https://github.com/catboost/catboost/commit/09fd7c42734918de6c0c576b808fefedf855f5f6
+  add_compile_options(-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ -Werror=unguarded-availability)
 endif()
 
 # project independent dirs
