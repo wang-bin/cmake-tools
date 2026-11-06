@@ -107,7 +107,15 @@ if(NOT ARCH)
     endif()
   endif()
 endif()
-# TODO: cmake4.1+ linux arch
+if(CMAKE_SYSTEM_NAME STREQUAL Linux) # cmake 4.1+ linux arch
+  if(ARCH MATCHES "[aA].*[rR].*64")
+    set(ARCH arm64)
+  elseif(ARCH MATCHES "[aA][rR][mM]")
+    set(ARCH armhf)
+  elseif(ARCH MATCHES "64")
+    set(ARCH amd64)
+  endif()
+endif()
 
 if(WIN32 AND NOT WINDOWS_PHONE AND NOT WINDOWS_STORE)
   set(WINDOWS_DESKTOP 1)
