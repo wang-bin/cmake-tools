@@ -4,6 +4,7 @@
 # The cmake-tools project is licensed under the new MIT license.
 #
 # Copyright (c) 2017-2026, Wang Bin
+# AI participated
 ##
 # defined vars:
 # - EXTRA_INCLUDE
@@ -873,23 +874,26 @@ function(set_rpath)
     if(CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT MACCATALYST)
       list(APPEND RPATH_DIRS  /opt/homebrew/lib /usr/local/lib)
     endif()
+    foreach(p ${RPATH_DIRS})
+      set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
+      list(APPEND RPATH_FLAGS_LIST ${LD_RPATH}\"${p}\")
+    endforeach()
     # -install_name @rpath/... is set by cmake
   else()
-    if(CMAKE_MAJOR_VERSION GREATER 3)
-        list(APPEND RPATH_DIRS "\\$$ORIGIN" "\\$$ORIGIN/lib" "\\$$ORIGIN/../lib" "\\$$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
-    else()
-        list(APPEND RPATH_DIRS "\\$ORIGIN" "\\$ORIGIN/lib" "\\$ORIGIN/../lib" "\\$ORIGIN/../../lib/${ARCH}") #. /usr/local/lib:$ORIGIN
-    endif()
-    set(RPATH_FLAGS "${RPATH_FLAGS} -Wl,-z,origin")
-    list(APPEND RPATH_FLAGS_LIST -Wl,-z,origin)
+    list(APPEND RPATH_DIRS "$ORIGIN" "$ORIGIN/lib" "$ORIGIN/../lib" "$ORIGIN/../../lib/${ARCH}")
+# Set properties on existing targets and initialize them for targets created later.
+    get_property(rpath_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(tgt IN LISTS rpath_targets)
+      get_target_property(type ${tgt} TYPE)
+      if(type MATCHES "^(EXECUTABLE|SHARED_LIBRARY|MODULE_LIBRARY)$")
+        set_property(TARGET ${tgt} APPEND PROPERTY BUILD_RPATH ${RPATH_DIRS})
+        set_property(TARGET ${tgt} APPEND PROPERTY INSTALL_RPATH ${RPATH_DIRS})
+      endif()
+    endforeach()
+    set(CMAKE_BUILD_RPATH ${CMAKE_BUILD_RPATH} ${RPATH_DIRS} PARENT_SCOPE)
+    set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${RPATH_DIRS} PARENT_SCOPE)
+    string(APPEND RPATH_FLAGS " -Wl,-z,origin")
   endif()
-  foreach(p ${RPATH_DIRS})
-    set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}\"${p}\"") # '' on windows will be included in runpathU
-    list(APPEND RPATH_FLAGS_LIST ${LD_RPATH}\"${p}\")
-  endforeach()
-  #set(CMAKE_INSTALL_RPATH "${RPATH_DIRS}")
-  #string(REPLACE ";" ":" RPATHS "${RPATH_DIRS}")
-  #set(RPATH_FLAGS "${RPATH_FLAGS} ${LD_RPATH}'${RPATHS}'")
   if(RPATH_TARGET AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
     get_target_property(tgt_reloc ${RPATH_TARGET} RELOCATABLE)
     if(NOT tgt_reloc) # iOS: -rpath can only be used when creating a dynamic final linked image
