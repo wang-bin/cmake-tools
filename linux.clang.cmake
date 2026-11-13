@@ -103,6 +103,9 @@ get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,ASM>:--target=${TARGET_TRIPPLE}>) # if no COMPILE_LANGUAGE, will add to nasm and error. ASM is required to compile arm asm by clang
 add_link_options(--target=${TARGET_TRIPPLE})
 if(USE_LIBCXX OR USE_LIBCXX_STATIC)
+  if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_DISABLE_AVAILABILITY>") # _LIBCPP_HAS_VENDOR_AVAILABILITY_ANNOTATIONS is 1 in apple host __config_site
+  endif()
   if(CMAKE_CROSSCOMPILING AND USE_TARGET_LIBCXX) # assume libc++ abi is stable, then USE_TARGET_LIBCXX=0 is ok, i.e. build with host libc++, but run with a different target libc++ version
   # headers in clang builtin include dir(stddef.h etc.). -nobuiltininc makes cross build harder if a header is not found in sysroot(include_next stddef.h in /usr/include/linux/)
     # -nostdinc++: clang always search libc++(-stdlib=libc++) in host toolchain, may mismatch with target libc++ version, and results in conflict(include_next)
