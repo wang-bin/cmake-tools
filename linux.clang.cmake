@@ -4,6 +4,7 @@
 # The cmake-tools project is licensed under the new MIT license.
 #
 # Copyright (c) 2017-2026, Wang Bin
+# AI participated
 #
 # clang + lld to cross build apps for linux
 #
@@ -100,8 +101,10 @@ execute_process(
 )
 get_filename_component(LLVM_DIR ${CMAKE_RANLIB} DIRECTORY)
 
-add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,ASM>:--target=${TARGET_TRIPPLE}>) # if no COMPILE_LANGUAGE, will add to nasm and error. ASM is required to compile arm asm by clang
-add_link_options(--target=${TARGET_TRIPPLE})
+# CMake injects --target= via CMAKE_<LANG>_COMPILE_OPTIONS_TARGET; applies to C/CXX/ASM only (not NASM)
+set(CMAKE_C_COMPILER_TARGET   ${TARGET_TRIPPLE})
+set(CMAKE_CXX_COMPILER_TARGET ${TARGET_TRIPPLE})
+set(CMAKE_ASM_COMPILER_TARGET ${TARGET_TRIPPLE})
 if(USE_LIBCXX OR USE_LIBCXX_STATIC)
   if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-D_LIBCPP_DISABLE_AVAILABILITY>") # _LIBCPP_HAS_VENDOR_AVAILABILITY_ANNOTATIONS is 1 in apple host __config_site
